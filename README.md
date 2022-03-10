@@ -1,2 +1,1 @@
-# WarheadDisccord
-Test server for fix
+# WarheadDiscord

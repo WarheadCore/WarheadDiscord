@@ -1,0 +1,147 @@
+#
+# This file is part of the WarheadCore Project. See AUTHORS file for Copyright information
+#
+# This file is free software; as a special exception the author gives
+# unlimited permission to copy and/or distribute it, with or without
+# modifications, as long as this notice is preserved.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
+# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# User has manually chosen to ignore the git-tests, so throw them a warning.
+# This is done EACH compile so they can be alerted about the consequences.
+#
+
+##############################################
+#
+#   WARHEAD FIX CONFIG
+#
+
+
+###################################################################################################
+#
+#  LOGGING SYSTEM SETTINGS
+#
+#  Sink config values: Given an sink "name"
+#    Sink.name
+#        Description: Defines 'where to log'
+#        Format:      Type,Times,Pattern,Option1,Option2,Option3,Option4
+#
+#                     Type
+#                       0 - (Console)
+#                       1 - (File)
+#
+#                     LogLevel (all types)
+#                         0 - (Trace)
+#                         1 - (Debug)
+#                         2 - (Info)
+#                         3 - (Warning)
+#                         4 - (Error)
+#                         5 - (Critical)
+#                         6 - (Disabled)
+#
+#                    Pattern (all type)
+#                       %v - The actual text to log
+#                       %t - Thread id
+#                       %P - Process id
+#                       %n - Logger's name
+#                       %l - The log level of the message
+#                       %L - Short log level of the message
+#                       %a - Abbreviated weekday name
+#                       %A - Full weekday name
+#                       %b - Abbreviated month name
+#                       %B - Full month name
+#                       %c - Date and time representation
+#                       %C - Year in 2 digits
+#                       %Y - Year in 4 digits
+#                       %D or %x - Short MM/DD/YY date
+#                       %m - Month 01-12
+#                       %d - Day of month 01-31
+#                       %H - Hours in 24 format 00-23
+#                       %I - Hours in 12 format 01-12
+#                       %M - Minutes 00-59
+#                       %S - Seconds 00-59
+#                       %e - Millisecond part of the current second 000-999
+#                       %f - Microsecond part of the current second 000000-999999
+#                       %F - Nanosecond part of the current second 000000000-999999999
+#                       %p - AM/PM
+#                       %r - 12 hour clock
+#                       %R - 24-hour HH:MM time, equivalent to %H:%M
+#                       %T or %X - ISO 8601 time format (HH:MM:SS), equivalent to %H:%M:%S
+#                       %z - ISO 8601 offset from UTC in timezone ([+/-]HH:MM)
+#                       %E - Seconds since the epoch
+#                       %% - The % sign
+#                       %+ - spdlog's default format "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%s:%#] %v"
+#                       %^ - start color range (can be used only once)
+#                       %$ - end color range (for example %^[+++]%$ %v) (can be used only once)
+#                       %@ - Source file and line
+#                       %s - Basename of the source file
+#                       %g - Full or relative path of the source file as appears
+#                       %# - Source line
+#                       %! - Source function
+#                       %o - Elapsed time in milliseconds since previous message
+#                       %i - Elapsed time in microseconds since previous message
+#                       %u - Elapsed time in nanoseconds since previous message
+#                       %O - Elapsed time in seconds since previous message
+#                           Example for file "[%Y-%m-%d %H:%M:%S.%e] [%l] %v"
+#                           Example for console "%^[%T] %v%$"
+#
+#                    Optional1 - Colors (is type Console)
+#                       Format: "fatal critical error warning notice info debug trace"
+#                       black
+#                       red
+#                       green
+#                       brown
+#                       blue
+#                       magenta
+#                       cyan
+#                       gray
+#                       darkGray
+#                       lightRed
+#                       lightGreen
+#                       yellow
+#                       lightBlue
+#                       lightMagenta
+#                       lightCyan
+#                       white
+#                         Example: "green lightMagenta cyan brown red lightRed"
+#
+#                     Optional1 - File name (is type file)
+#                       Example: "Auth.log"
+#
+#                     Optional2 - Rotate on open (is type File)
+#                       1: The log file is rotated when the is opened.
+#                       0: Log messages will be appended to an existing log file, if it exists. This is the default.
+#
+#                     Optional3 - Max files size (is type File) in Megabytes
+#                       Example: "10"
+#
+#                     Optional4 - Max files (is type File)
+#                       Example: "5"
+#
+
+Sink.Console = 0,0,"%^[%T] %v%$","green lightMagenta cyan brown red lightRed"
+Sink.Auth = 1,0,"[%Y-%m-%d %H:%M:%S.%e] [%l] %v","Auth.log",1,10,5
+
+#
+#  Logger config values: Given a logger "name"
+#    Logger.name
+#        Description: Defines 'What to log'
+#        Format:      LogLevel,AppenderList
+#
+#                     LogLevel
+#                         0 - (Trace)
+#                         1 - (Debug)
+#                         2 - (Info)
+#                         3 - (Warning)
+#                         4 - (Error)
+#                         5 - (Critical)
+#                         6 - (Disabled)
+#
+#                     File channel: file channel linked to logger
+#                     (Using spaces as separator).
+#
+
+Logger.root = 0,Console Auth
+###################################################################################################
