@@ -19,76 +19,60 @@
 #define _LOG_H_
 
 #include "Define.h"
+#include "StringFormat.h"
 #include <unordered_map>
-#include <fmt/format.h>
-#include <fmt/color.h>
-
-namespace spdlog::sinks
-{
-    class sink;
-}
 
 enum class LogLevel : uint8
 {
-    Trace,
-    Debug,
-    Info,
-    Warning,
-    Error,
-    Critical,
-    Disabled,
+    LOG_LEVEL_DISABLED,
+    LOG_LEVEL_FATAL,
+    LOG_LEVEL_CRITICAL,
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARNING,
+    LOG_LEVEL_NOTICE,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_TRACE,
 
-    Max
+    LOG_LEVEL_MAX
 };
 
-enum class SinkType : uint8
+// For create LogChannel
+enum ChannelOptions
 {
-    Console,
-    File,
+    CHANNEL_OPTIONS_TYPE,
+    CHANNEL_OPTIONS_TIMES,
+    CHANNEL_OPTIONS_PATTERN,
+    CHANNEL_OPTIONS_OPTION_1,
+    CHANNEL_OPTIONS_OPTION_2,
+    CHANNEL_OPTIONS_OPTION_3,
+    CHANNEL_OPTIONS_OPTION_4,
+    CHANNEL_OPTIONS_OPTION_5,
+    CHANNEL_OPTIONS_OPTION_6,
 
-    Max
+    CHANNEL_OPTIONS_MAX
 };
 
-enum class SinkOptions : uint8
+enum class FormattingChannelType : uint8
 {
-    Type,
-    Level,
-    Pattern,
-    Option1,
-    Option2,
-    Option3,
-    Option4,
-
-    Max
+    FORMATTING_CHANNEL_TYPE_CONSOLE = 1,
+    FORMATTING_CHANNEL_TYPE_FILE
 };
 
-enum class ConsoleColor : uint16
+// For create Logger
+enum LoggerOptions
 {
-    Black        = 0x0000,
-    Red          = 0x0004,
-    Green        = 0x0002,
-    Brown        = 0x0006,
-    Blue         = 0x0001,
-    Magenta      = 0x0005,
-    Cyan         = 0x0003,
-    Gray         = 0x0007,
-    DarkGray     = 0x0008,
-    LightRed     = 0x000C,
-    LightGreen   = 0x000A,
-    Yellow       = 0x000E,
-    LightBlue    = 0x0009,
-    LightMagenta = 0x000D,
-    LightCyan    = 0x000B,
-    White        = 0x000F
+    LOGGER_OPTIONS_LOG_LEVEL,
+    LOGGER_OPTIONS_CHANNELS_NAME,
+
+    LOGGER_OPTIONS_UNKNOWN
 };
 
-enum class LoggerOptions : uint8
+namespace Poco
 {
-    LogLevel,
-    SinkName,
-
-    Max
-};
+    class FormattingChannel;
+    class Logger;
+}
 
 class WH_COMMON_API Log
 {
@@ -109,49 +93,32 @@ public:
     bool ShouldLog(std::string_view type, LogLevel level) const;
 
     template<typename... Args>
-    inline void outMessage(std::string const& filter, LogLevel const level, const char* file, int line, const char* function, std::string_view fmt, Args&&... args)
+    inline void outMessage(std::string const& filter, LogLevel const level, std::string_view fmt, Args&&... args)
     {
-        Write(filter, level, file, line, function, fmt::format(fmt, std::forward<Args>(args)...));
+        Write(filter, level, fmt::format(fmt, std::forward<Args>(args)...));
     }
 
-private:
-    void Write(std::string_view filter, LogLevel const level, const char* file, int line, const char* function, std::string_view message);
+    void Write(std::string_view filter, LogLevel const level, std::string_view message);
 
+private:
     void CreateLoggerFromConfig(std::string const& configLoggerName);
-    void CreateSinksFromConfig(std::string const& loggerSinkName);
+    void CreateChannelsFromConfig(std::string const& logChannelName);
     void ReadLoggersFromConfig();
-    void ReadSinksFromConfig();
+    void ReadChannelsFromConfig();
 
     void InitLogsDir();
     void Clear();
-    uint16 GetColorCode(std::string_view colorName);
 
     std::string_view GetPositionOptions(std::string_view options, uint8 position, std::string_view _default = {});
-
-    inline std::string_view GetPositionOptions(std::string_view options, SinkType position, std::string_view _default = {})
-    {
-        return GetPositionOptions(options, static_cast<uint8>(position), _default);
-    }
-
-    inline std::string_view GetPositionOptions(std::string_view options, SinkOptions position, std::string_view _default = {})
-    {
-        return GetPositionOptions(options, static_cast<uint8>(position), _default);
-    }
-
-    inline std::string_view GetPositionOptions(std::string_view options, LoggerOptions position, std::string_view _default = {})
-    {
-        return GetPositionOptions(options, static_cast<uint8>(position), _default);
-    }
-
     std::string const GetChannelsFromLogger(std::string const& loggerName);
 
+    Poco::FormattingChannel* GetFormattingChannel(std::string const& channelName);
+    void AddFormattingChannel(std::string const& channelName, Poco::FormattingChannel* channel);
+    Poco::Logger* GetLoggerByType(std::string_view type) const;
+
     std::string m_logsDir;
-    LogLevel lowestLogLevel{ LogLevel::Critical };
-
-    void AddSink(std::string const& sinkName, std::shared_ptr<spdlog::sinks::sink> sink);
-    std::shared_ptr<spdlog::sinks::sink> GetSink(std::string const& sinkName);
-
-    std::unordered_map<std::string, std::shared_ptr<spdlog::sinks::sink>> _sinkList;
+    LogLevel highestLogLevel;
+    std::unordered_map<std::string, Poco::FormattingChannel*> _channelStore;
 };
 
 #define sLog Log::instance()
@@ -160,11 +127,11 @@ private:
     { \
         try \
         { \
-            sLog->outMessage(filterType__, level__, __FILE__, __LINE__, static_cast<const char *>(__FUNCTION__), fmt::format(__VA_ARGS__)); \
+            sLog->outMessage(filterType__, level__, fmt::format(__VA_ARGS__)); \
         } \
         catch (const std::exception& e) \
         { \
-            sLog->outMessage("server", LogLevel::Error, __FILE__, __LINE__, static_cast<const char *>(__FUNCTION__), "Wrong format occurred ({}) at '{}:{}'", \
+            sLog->outMessage("server", LogLevel::LOG_LEVEL_ERROR, "Wrong format occurred ({}) at '{}:{}'", \
                 e.what(), __FILE__, __LINE__); \
         } \
     }
@@ -175,28 +142,36 @@ private:
                 LOG_EXCEPTION_FREE(filterType__, level__, __VA_ARGS__); \
         } while (0)
 
+// Fatal - 1
+#define LOG_FATAL(filterType__, ...) \
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_FATAL, __VA_ARGS__)
+
+// Critical - 2
 #define LOG_CRIT(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::Critical, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_CRITICAL, __VA_ARGS__)
 
+// Error - 3
 #define LOG_ERROR(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::Error, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_ERROR, __VA_ARGS__)
 
+// Warning - 4
 #define LOG_WARN(filterType__, ...)  \
-    LOG_MSG_BODY(filterType__, LogLevel::Warning, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_WARNING, __VA_ARGS__)
 
+// Notice - 5
+#define LOG_NOTICE(filterType__, ...)  \
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_NOTICE, __VA_ARGS__)
+
+// Info - 6
 #define LOG_INFO(filterType__, ...)  \
-    LOG_MSG_BODY(filterType__, LogLevel::Info, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_INFO, __VA_ARGS__)
 
+// Debug - 7
 #define LOG_DEBUG(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::Debug, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_DEBUG, __VA_ARGS__)
 
+// Trace - 8
 #define LOG_TRACE(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::Trace, __VA_ARGS__)
-
-#define FMT_LOG_INFO(...) \
-    fmt::print(fmt::emphasis::bold | fg(fmt::color::cyan), fmt::format(__VA_ARGS__) + "\n");
-
-#define FMT_LOG_ERROR(...) \
-    fmt::print(fmt::emphasis::bold | fg(fmt::color::red), fmt::format(__VA_ARGS__) + "\n");
+    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_TRACE, __VA_ARGS__)
 
 #endif // _LOG_H__

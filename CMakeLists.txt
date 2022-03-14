@@ -52,6 +52,7 @@ include(GroupSources)
 include(AutoCollect)
 include(ConfigInstall)
 include(DynamicLibInstall)
+include(PocoMacros)
 
 find_package(PCHSupport)
 find_package(MySQL REQUIRED)

@@ -19,37 +19,38 @@
 #include "Config.h"
 #include "StringConvert.h"
 #include "Tokenize.h"
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/rotating_file_sink.h>
+#include <Poco/AutoPtr.h>
+#include <Poco/FileChannel.h>
+#include <Poco/FormattingChannel.h>
+#include <Poco/Logger.h>
+#include <Poco/PatternFormatter.h>
+#include <Poco/SplitterChannel.h>
+#include <sstream>
+#include <unordered_map>
+#include <fmt/core.h>
+
+#if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
+#include <Poco/WindowsConsoleChannel.h>
+#define CONSOLE_CHANNEL WindowsColorConsoleChannel
+#else
+#include <Poco/ConsoleChannel.h>
+#define CONSOLE_CHANNEL ColorConsoleChannel
+#endif
+
+using namespace Poco;
 
 namespace
 {
     // Const loggers name
     constexpr auto LOGGER_ROOT = "root";
+    constexpr auto LOGGER_GM = "commands.gm";
+    constexpr auto LOGGER_PLAYER_DUMP = "entities.player.dump";
 
     // Prefix's
     constexpr auto PREFIX_LOGGER = "Logger.";
-    constexpr auto PREFIX_SINK = "Sink.";
+    constexpr auto PREFIX_CHANNEL = "LogChannel.";
     constexpr auto PREFIX_LOGGER_LENGTH = 7;
-    constexpr auto PREFIX_SINK_LENGTH = 5;
-
-    std::shared_ptr<spdlog::logger> GetLoggerByType(std::string_view type)
-    {
-        if (auto logger = spdlog::get(std::string(type)))
-            return logger;
-
-        if (type == LOGGER_ROOT)
-            return nullptr;
-
-        std::string parentLogger = LOGGER_ROOT;
-        size_t found = type.find_last_of('.');
-
-        if (found != std::string::npos)
-            parentLogger = type.substr(0, found);
-
-        return GetLoggerByType(parentLogger);
-    }
+    constexpr auto PREFIX_CHANNEL_LENGTH = 11;    
 }
 
 Log::Log()
@@ -71,10 +72,9 @@ Log* Log::instance()
 void Log::Clear()
 {
     // Clear all loggers
-    spdlog::shutdown();
+    Logger::shutdown();
 
-    // Clear sink list
-    _sinkList.clear();
+    _channelStore.clear();
 }
 
 void Log::Initialize()
@@ -84,20 +84,19 @@ void Log::Initialize()
 
 void Log::LoadFromConfig()
 {
-    lowestLogLevel = LogLevel::Critical;
+    highestLogLevel = LogLevel::LOG_LEVEL_FATAL;
 
     Clear();
     InitLogsDir();
-    ReadSinksFromConfig();
+    ReadChannelsFromConfig();
     ReadLoggersFromConfig();
 
-    // Clear sink list
-    _sinkList.clear();
+    _channelStore.clear();
 }
 
 void Log::InitLogsDir()
 {
-    m_logsDir = sConfigMgr->GetOption<std::string>("LogsDir", "", false);
+    m_logsDir = sConfigMgr->GetOption<std::string>("LogsDir", "");
 
     if (!m_logsDir.empty())
         if ((m_logsDir.at(m_logsDir.length() - 1) != '/') && (m_logsDir.at(m_logsDir.length() - 1) != '\\'))
@@ -109,28 +108,28 @@ void Log::ReadLoggersFromConfig()
     auto const& keys = sConfigMgr->GetKeysByString(PREFIX_LOGGER);
     if (!keys.size())
     {
-        FMT_LOG_ERROR("Log::ReadLoggersFromConfig - Not found loggers, change config file!");
+        fmt::print("Log::ReadLoggersFromConfig - Not found loggers, change config file!");
         return;
     }
 
     for (auto const& loggerName : keys)
         CreateLoggerFromConfig(loggerName);
 
-    if (!spdlog::get(LOGGER_ROOT))
-        FMT_LOG_ERROR("Log::ReadLoggersFromConfig - Logger '{0}' not found!\nPlease change or add 'Logger.{0}' option in config file!", LOGGER_ROOT);
+    if (!Logger::has(LOGGER_ROOT))
+        fmt::print("Log::ReadLoggersFromConfig - Logger '{0}' not found!\nPlease change or add 'Logger.{0}' option in config file!", LOGGER_ROOT);
 }
 
-void Log::ReadSinksFromConfig()
+void Log::ReadChannelsFromConfig()
 {
-    auto const& keys = sConfigMgr->GetKeysByString(PREFIX_SINK);
+    auto const& keys = sConfigMgr->GetKeysByString(PREFIX_CHANNEL);
     if (keys.empty())
     {
-        FMT_LOG_ERROR("Log::ReadChannelsFromConfig - Not found sinks, change config file!");
+        fmt::print("Log::ReadChannelsFromConfig - Not found channels, change config file!");
         return;
     }
 
-    for (auto const& sinkName : keys)
-        CreateSinksFromConfig(sinkName);
+    for (auto const& channelName : keys)
+        CreateChannelsFromConfig(channelName);
 }
 
 std::string_view Log::GetPositionOptions(std::string_view options, uint8 position, std::string_view _default /*= {}*/)
@@ -144,31 +143,27 @@ std::string_view Log::GetPositionOptions(std::string_view options, uint8 positio
 
 bool Log::ShouldLog(std::string_view type, LogLevel level) const
 {
-    // TODO: Use cache to store "Type.sub1.sub2": "Type" equivalence, should
-    // Speed up in cases where requesting "Type.sub1.sub2" but only configured
-    // Logger "Type"
-
-    // Don't even look for a logger if the LogLevel is lower than lowest log levels across all loggers
-    if (level < lowestLogLevel)
+    // Don't even look for a logger if the LogLevel is higher than the highest log levels across all loggers
+    if (level > highestLogLevel)
         return false;
 
-    auto logger = GetLoggerByType(type);
+    Logger* const logger = GetLoggerByType(type);
     if (!logger)
         return false;
 
-    LogLevel logLevel = LogLevel(logger->level());
-    return logLevel != LogLevel::Disabled && logLevel <= level;
+    LogLevel logLevel = LogLevel(logger->getLevel());
+    return logLevel != LogLevel::LOG_LEVEL_DISABLED && logLevel >= level;
 }
 
 std::string const Log::GetChannelsFromLogger(std::string const& loggerName)
 {
-    std::string const& loggerOptions = sConfigMgr->GetOption<std::string>(PREFIX_LOGGER + loggerName, "2, Console Server", false);
+    std::string const& loggerOptions = sConfigMgr->GetOption<std::string>(PREFIX_LOGGER + loggerName, "6, Console Server");
 
     auto const& tokensOptions = Warhead::Tokenize(loggerOptions, ',', true);
     if (tokensOptions.empty())
         return "";
 
-    return std::string(tokensOptions.at(static_cast<uint8>(LoggerOptions::SinkName)));
+    return std::string(tokensOptions.at(LOGGER_OPTIONS_CHANNELS_NAME));
 }
 
 void Log::CreateLoggerFromConfig(std::string const& configLoggerName)
@@ -176,243 +171,289 @@ void Log::CreateLoggerFromConfig(std::string const& configLoggerName)
     if (configLoggerName.empty())
         return;
 
-    std::string const& options = sConfigMgr->GetOption<std::string>(configLoggerName, "", false);
-    std::string loggerName = configLoggerName.substr(PREFIX_LOGGER_LENGTH);
+    std::string const& options = sConfigMgr->GetOption<std::string>(configLoggerName, "");
+    std::string const& loggerName = configLoggerName.substr(PREFIX_LOGGER_LENGTH);
+
+    if (loggerName == "system")
+    {
+        fmt::print("Log::CreateLoggerFromConfig: Is forbidden to use logger name {}\n", loggerName);
+        return;
+    }
 
     if (options.empty())
     {
-        FMT_LOG_ERROR("Log::CreateLoggerFromConfig: Missing config option Logger.{}", loggerName);
+        fmt::print("Log::CreateLoggerFromConfig: Missing config option Logger.{}", loggerName);
         return;
     }
 
     auto const& tokens = Warhead::Tokenize(options, ',', true);
-    if (!tokens.size() || tokens.size() < static_cast<size_t>(LoggerOptions::Max))
+    if (!tokens.size() || tokens.size() < LOGGER_OPTIONS_CHANNELS_NAME + 1)
     {
-        FMT_LOG_ERROR("Log::CreateLoggerFromConfig: Bad config options for Logger ({})", loggerName);
+        fmt::print("Log::CreateLoggerFromConfig: Bad config options for Logger ({})", loggerName);
         return;
     }
 
-    LogLevel level = static_cast<LogLevel>(Warhead::StringTo<uint8>(GetPositionOptions(options, LoggerOptions::LogLevel)).value_or(static_cast<uint8>(LogLevel::Max)));
-    if (level >= LogLevel::Max)
+    LogLevel level = static_cast<LogLevel>(Warhead::StringTo<uint8>(GetPositionOptions(options, LOGGER_OPTIONS_LOG_LEVEL)).value_or(static_cast<uint8>(LogLevel::LOG_LEVEL_MAX)));
+    if (level >= LogLevel::LOG_LEVEL_MAX)
     {
-        FMT_LOG_ERROR("Log::CreateLoggerFromConfig: Wrong Log Level for logger {}", loggerName);
+        fmt::print("Log::CreateLoggerFromConfig: Wrong Log Level for logger {}", loggerName);
         return;
     }
 
-    if (level < lowestLogLevel)
-        lowestLogLevel = level;
+    if (level > highestLogLevel)
+        highestLogLevel = level;
 
-    std::vector<spdlog::sink_ptr> sinkList;
+    AutoPtr<SplitterChannel> splitterChannel(new SplitterChannel);
+    auto const& channelsName = GetPositionOptions(options, LOGGER_OPTIONS_CHANNELS_NAME);
 
-    auto const& sinksName = GetPositionOptions(options, LoggerOptions::SinkName);
-
-    for (auto const& sinkName : Warhead::Tokenize(sinksName, ' ', false))
+    for (auto const& tokensFmtChannels : Warhead::Tokenize(channelsName, ' ', false))
     {
-        auto loggerSink = GetSink(std::string(sinkName));
-        if (!loggerSink)
-            continue;
+        std::string channelName{ tokensFmtChannels };
 
-        sinkList.emplace_back(std::move(loggerSink));
+        auto fmtChannel = GetFormattingChannel(channelName);
+        if (!fmtChannel)
+        {
+            fmt::print("Log::CreateLoggerFromConfig - Not found channel ({})", channelName);
+            return;
+        }
+
+        splitterChannel->addChannel(fmtChannel);
     }
 
     try
     {
-        auto logger = std::make_shared<spdlog::logger>(loggerName);
-        logger->set_level(static_cast<spdlog::level::level_enum>(level));
-        logger->sinks().swap(sinkList);
-        logger->flush_on(spdlog::level::level_enum(LogLevel::Error));
-        spdlog::register_logger(logger);
+        Logger::create(loggerName, splitterChannel, static_cast<uint8>(level));
     }
     catch (const std::exception& e)
     {
-        FMT_LOG_ERROR("Log::CreateLogger - {}", e.what());
+        fmt::print("Log::CreateLogger - {}", e.what());
     }
 }
 
-void Log::CreateSinksFromConfig(std::string const& loggerSinkName)
+void Log::CreateChannelsFromConfig(std::string const& logChannelName)
 {
-    if (loggerSinkName.empty())
+    if (logChannelName.empty())
         return;
 
-    std::string const& options = sConfigMgr->GetOption<std::string>(loggerSinkName, "", false);
-    std::string const& sinkName = loggerSinkName.substr(PREFIX_SINK_LENGTH);
+    std::string const& options = sConfigMgr->GetOption<std::string>(logChannelName, "");
+    std::string const& channelName = logChannelName.substr(PREFIX_CHANNEL_LENGTH);
 
     if (options.empty())
     {
-        FMT_LOG_ERROR("{}: Missing config option Sink.{}", __FUNCTION__, sinkName);
+        fmt::print("Log::CreateChannelsFromConfig: Missing config option LogChannel.{}", channelName);
         return;
     }
 
     auto const& tokens = Warhead::Tokenize(options, ',', true);
-    if (tokens.size() < static_cast<size_t>(SinkOptions::Pattern) + 1 || tokens.size() > static_cast<size_t>(SinkOptions::Max))
+    if (tokens.size() < CHANNEL_OPTIONS_PATTERN + 1)
     {
-        FMT_LOG_ERROR("{}: Wrong config option Sink.{}={}", __FUNCTION__, sinkName, options);
+        fmt::print("Log::CreateChannelsFromConfig: Wrong config option (< CHANNEL_OPTIONS_PATTERN) LogChannel.{}={}", channelName, options);
         return;
     }
 
-    auto channelType = Warhead::StringTo<uint8>(GetPositionOptions(options, SinkOptions::Type));
-    if (!channelType || channelType >= static_cast<uint8>(SinkType::Max))
+    if (tokens.size() > CHANNEL_OPTIONS_MAX)
     {
-        FMT_LOG_ERROR("{}: Wrong sink type for Sink.{}\n", __FUNCTION__, sinkName);
+        fmt::print("Log::CreateChannelsFromConfig: Wrong config option (> CHANNEL_OPTIONS_MAX) LogChannel.{}={}", channelName, options);
         return;
     }
 
-    LogLevel level = static_cast<LogLevel>(Warhead::StringTo<uint8>(GetPositionOptions(options, SinkOptions::Level)).value_or(static_cast<uint8>(LogLevel::Max)));
-    if (level >= LogLevel::Max)
+    auto channelType = Warhead::StringTo<uint8>(GetPositionOptions(options, CHANNEL_OPTIONS_TYPE));
+    if (!channelType || (channelType && channelType > (uint8)FormattingChannelType::FORMATTING_CHANNEL_TYPE_FILE))
     {
-        FMT_LOG_ERROR("{}: Wrong Log Level for Sink.{}", __FUNCTION__, sinkName);
+        fmt::print("Log::CreateChannelsFromConfig: Wrong channel type for LogChannel.{}\n", channelName);
         return;
     }
 
-    auto pattern = GetPositionOptions(options, SinkOptions::Pattern);
+    auto times = GetPositionOptions(options, CHANNEL_OPTIONS_TIMES);
+    if (times.empty())
+    {
+        fmt::print("Log::CreateChannelsFromConfig: Empty times for LogChannel.{}", channelName);
+        return;
+    }
+
+    auto pattern = GetPositionOptions(options, CHANNEL_OPTIONS_PATTERN);
     if (pattern.empty())
     {
-        FMT_LOG_ERROR("{}: Empty pattern for Sink.{}", __FUNCTION__, sinkName);
+        fmt::print("Log::CreateChannelsFromConfig: Empty pattern for LogChannel.{}", channelName);
         return;
     }
 
-    if (channelType.value() == static_cast<uint8>(SinkType::Console))
+    // Start configuration pattern channel
+    AutoPtr<PatternFormatter> _pattern(new PatternFormatter);
+
+    try
     {
-        try
+        _pattern->setProperty("pattern", std::string(pattern));
+        _pattern->setProperty("times", std::string(times));
+    }
+    catch (const std::exception& e)
+    {
+        fmt::print("Log::CreateChannelsFromConfig: {}", e.what());
+    }
+
+    if (channelType.value() == static_cast<uint8>(FormattingChannelType::FORMATTING_CHANNEL_TYPE_CONSOLE))
+    {
+        // Configuration console channel
+        AutoPtr<CONSOLE_CHANNEL> _channel(new CONSOLE_CHANNEL);
+
+        // Init Colors
+        auto colorOptions = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_1);
+
+        if (!colorOptions.empty())
         {
-            // Configuration console channel
-            auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-            consoleSink->set_level(spdlog::level::level_enum(level));
-            consoleSink->set_pattern(std::string(pattern));
-
-            // Init Colors
-            auto colorOptions = GetPositionOptions(options, SinkOptions::Option1);
-
-            if (!colorOptions.empty())
+            auto const& tokensColor = Warhead::Tokenize(colorOptions, ' ', false);
+            if (tokensColor.size() == static_cast<uint64>(LogLevel::LOG_LEVEL_TRACE))
             {
-                auto const& tokensColor = Warhead::Tokenize(colorOptions, ' ', false);
-                if (tokensColor.size() == static_cast<uint64>(LogLevel::Max) - 1)
+                try
                 {
-                    consoleSink->set_color(spdlog::level::level_enum::trace, GetColorCode(tokensColor[0]));
-                    consoleSink->set_color(spdlog::level::level_enum::debug, GetColorCode(tokensColor[1]));
-                    consoleSink->set_color(spdlog::level::level_enum::info, GetColorCode(tokensColor[2]));
-                    consoleSink->set_color(spdlog::level::level_enum::warn, GetColorCode(tokensColor[3]));
-                    consoleSink->set_color(spdlog::level::level_enum::err, GetColorCode(tokensColor[4]));
-                    consoleSink->set_color(spdlog::level::level_enum::critical, GetColorCode(tokensColor[5]));
+                    _channel->setProperty("fatalColor", std::string(tokensColor[0]));
+                    _channel->setProperty("criticalColor", std::string(tokensColor[1]));
+                    _channel->setProperty("errorColor", std::string(tokensColor[2]));
+                    _channel->setProperty("warningColor", std::string(tokensColor[3]));
+                    _channel->setProperty("noticeColor", std::string(tokensColor[4]));
+                    _channel->setProperty("informationColor", std::string(tokensColor[5]));
+                    _channel->setProperty("debugColor", std::string(tokensColor[6]));
+                    _channel->setProperty("traceColor", std::string(tokensColor[7]));
+                }
+                catch (const std::exception& e)
+                {
+                    fmt::print("Log::CreateLoggerFromConfig: {}", e.what());
                 }
             }
+            else
+                _channel->setProperty("enableColors", "false");
+        }
+        else
+            _channel->setProperty("enableColors", "false");
 
-            AddSink(sinkName, consoleSink);
-        }
-        catch (const spdlog::spdlog_ex& ex)
-        {
-            FMT_LOG_ERROR("{}: Sink init failed: {}", __FUNCTION__, ex.what());
-        }
+        AddFormattingChannel(channelName, new FormattingChannel(_pattern, _channel));
     }
-    else if (channelType.value() == static_cast<uint8>(SinkType::File))
+    else if (channelType.value() == (uint8)FormattingChannelType::FORMATTING_CHANNEL_TYPE_FILE)
     {
-        if (tokens.size() < static_cast<uint64>(SinkOptions::Option1) + 1)
-            ABORT("Bad file name for Sink.{}", sinkName);
+        if (tokens.size() < CHANNEL_OPTIONS_OPTION_1 + 1)
+        {
+            fmt::print("Bad file name for LogChannel.{}", channelName);
+            ABORT();
+        }
 
-        auto fileName = GetPositionOptions(options, SinkOptions::Option1);
-        auto _rotateOnOpen = GetPositionOptions(options, SinkOptions::Option2);
-        auto _maxFilesSize = GetPositionOptions(options, SinkOptions::Option3);
-        auto _maxFiles = GetPositionOptions(options, SinkOptions::Option4);
+        auto fileName = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_1);
+        auto rotateOnOpen = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_2);
+        auto rotation = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_3);
+        auto flush = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_4);
+        auto purgeAge = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_5);
+        auto archive = GetPositionOptions(options, CHANNEL_OPTIONS_OPTION_6);
 
-        auto rotateOnOpen = Warhead::StringTo<bool>(_rotateOnOpen);
-        if (!rotateOnOpen)
-            ABORT("Bad value for option 'Rotate on open' - '{}' in Sink.{}", _rotateOnOpen, sinkName);
-
-        auto maxFilesSize = Warhead::StringTo<uint64>(_maxFilesSize);
-        if (!maxFilesSize)
-            ABORT("Bad value for option 'Max files size' - '{}' in Sink.{}", _maxFilesSize, sinkName);
-
-        auto maxFiles = Warhead::StringTo<uint64>(_maxFiles);
-        if (!maxFiles)
-            ABORT("Bad value for option 'Max files' - '{}' in Sink.{}", _maxFiles, sinkName);
+        // Configuration file channel
+        AutoPtr<FileChannel> _fileChannel(new FileChannel);
 
         try
         {
-            // Configuration file channel
-            auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(m_logsDir + std::string(fileName), *maxFilesSize * 1048576, *maxFiles, *rotateOnOpen);
-            fileSink->set_level(spdlog::level::level_enum(level));
-            fileSink->set_pattern(std::string(pattern));
+            _fileChannel->setProperty("path", m_logsDir + std::string(fileName));
+            _fileChannel->setProperty("times", std::string(times));
 
-            AddSink(sinkName, fileSink);
+            if (!rotateOnOpen.empty())
+                _fileChannel->setProperty("rotateOnOpen", std::string(rotateOnOpen));
+
+            if (!rotation.empty())
+                _fileChannel->setProperty("rotation", std::string(rotation));
+
+            if (!flush.empty())
+                _fileChannel->setProperty("flush", std::string(flush));
+
+            if (!purgeAge.empty())
+                _fileChannel->setProperty("purgeAge", std::string(purgeAge));
+
+            if (!archive.empty())
+                _fileChannel->setProperty("archive", std::string(archive));
         }
-        catch (const spdlog::spdlog_ex& ex)
+        catch (const std::exception& e)
         {
-            FMT_LOG_ERROR("{}: Sink init failed: {}", __FUNCTION__, ex.what());
+            fmt::print("Log::CreateLoggerFromConfig: {}", e.what());
         }
+
+        AddFormattingChannel(channelName, new FormattingChannel(_pattern, _fileChannel));
     }
     else
-        ABORT("{}: Invalid channel type ({})", __FUNCTION__, *channelType);
+        fmt::print("Log::CreateLoggerFromConfig: Invalid channel type ({})", channelType.value());
 }
 
-void Log::Write(std::string_view filter, LogLevel const level, const char* file, int line, const char* function, std::string_view message)
+void Log::Write(std::string_view filter, LogLevel const level, std::string_view message)
 {
-    auto logger = GetLoggerByType(filter);
+    Logger* logger = GetLoggerByType(filter);
     if (!logger)
         return;
 
-    logger->log(spdlog::source_loc{ file, line, function }, spdlog::level::level_enum(level), message);
+    try
+    {
+        switch (level)
+        {
+            case LogLevel::LOG_LEVEL_FATAL:
+                logger->fatal(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_CRITICAL:
+                logger->critical(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_ERROR:
+                logger->error(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_WARNING:
+                logger->warning(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_NOTICE:
+                logger->notice(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_INFO:
+                logger->information(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_DEBUG:
+                logger->debug(std::string(message));
+                break;
+            case LogLevel::LOG_LEVEL_TRACE:
+                logger->trace(std::string(message));
+                break;
+            default:
+                break;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        fmt::print("Log::_Write - '{}'", e.what());
+    }
 }
 
-void Log::AddSink(std::string const& sinkName, std::shared_ptr<spdlog::sinks::sink> sink)
+Poco::FormattingChannel* Log::GetFormattingChannel(std::string const& channelName)
 {
-    auto const& itr = _sinkList.find(sinkName);
-    if (itr != _sinkList.end())
+    auto const& itr = _channelStore.find(channelName);
+    if (itr != _channelStore.end())
+        return _channelStore.at(channelName);
+
+    return nullptr;
+}
+
+void Log::AddFormattingChannel(std::string const& channelName, Poco::FormattingChannel* channel)
+{
+    if (GetFormattingChannel(channelName))
     {
-        FMT_LOG_ERROR("> {}: Sink with name '{}' is exist!. Skip add", __FUNCTION__, sinkName);
+        fmt::print("> Formatting channel ({}) is already exist!", channelName);
         return;
     }
 
-    _sinkList.emplace(sinkName, std::move(sink));
+    _channelStore.emplace(channelName, channel);
 }
 
-std::shared_ptr<spdlog::sinks::sink> Log::GetSink(std::string const& sinkName)
+Poco::Logger* Log::GetLoggerByType(std::string_view type) const
 {
-    auto const& itr = _sinkList.find(sinkName);
-    if (itr == _sinkList.end())
-    {
-        FMT_LOG_ERROR("> {}: Sink with name '{}' is don't exist!", __FUNCTION__, sinkName);
+    if (Logger::has(type.data()))
+        return &Logger::get(type.data());
+
+    if (type == LOGGER_ROOT)
         return nullptr;
-    }
 
-    return std::move(itr->second);
-}
+    std::string parentLogger = LOGGER_ROOT;
+    size_t found = type.find_last_of('.');
 
-uint16 Log::GetColorCode(std::string_view colorName)
-{
-    if (StringEqualI(colorName, "black"))
-        return static_cast<uint16>(ConsoleColor::Black);
-    else if (StringEqualI(colorName, "red"))
-        return static_cast<uint16>(ConsoleColor::Red);
-    else if (StringEqualI(colorName, "green"))
-        return static_cast<uint16>(ConsoleColor::Green);
-    else if (StringEqualI(colorName, "brown"))
-        return static_cast<uint16>(ConsoleColor::Brown);
-    else if (StringEqualI(colorName, "blue"))
-        return static_cast<uint16>(ConsoleColor::Blue);
-    else if (StringEqualI(colorName, "magenta"))
-        return static_cast<uint16>(ConsoleColor::Magenta);
-    else if (StringEqualI(colorName, "cyan"))
-        return static_cast<uint16>(ConsoleColor::Cyan);
-    else if (StringEqualI(colorName, "gray"))
-        return static_cast<uint16>(ConsoleColor::Gray);
-    else if (StringEqualI(colorName, "darkGray"))
-        return static_cast<uint16>(ConsoleColor::DarkGray);
-    else if (StringEqualI(colorName, "lightRed"))
-        return static_cast<uint16>(ConsoleColor::LightRed);
-    else if (StringEqualI(colorName, "lightGreen"))
-        return static_cast<uint16>(ConsoleColor::LightGreen);
-    else if (StringEqualI(colorName, "yellow"))
-        return static_cast<uint16>(ConsoleColor::Yellow);
-    else if (StringEqualI(colorName, "lightBlue"))
-        return static_cast<uint16>(ConsoleColor::LightBlue);
-    else if (StringEqualI(colorName, "lightMagenta"))
-        return static_cast<uint16>(ConsoleColor::LightMagenta);
-    else if (StringEqualI(colorName, "lightCyan"))
-        return static_cast<uint16>(ConsoleColor::LightCyan);
-    else if (StringEqualI(colorName, "white"))
-        return static_cast<uint16>(ConsoleColor::White);
+    if (found != std::string::npos)
+        parentLogger = type.substr(0, found);
 
-    FMT_LOG_ERROR("> Invalid color '{}'", colorName);
-
-    return static_cast<uint16>(ConsoleColor::White);
+    return GetLoggerByType(parentLogger);
 }

@@ -48,9 +48,10 @@ target_link_libraries(common
   PUBLIC
     boost
     fmt
-    spdlog
     threads
-    utf8cpp)
+    utf8cpp
+    openssl
+    Poco::Foundation)
 
 set_target_properties(common
   PROPERTIES
