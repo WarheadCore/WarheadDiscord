@@ -20,5 +20,7 @@ set(winDebugging
 
 add_subdirectory(app)
 add_subdirectory(common)
+add_subdirectory(database)
+add_subdirectory(discord)
 add_subdirectory(genrev)
 add_subdirectory(shared)

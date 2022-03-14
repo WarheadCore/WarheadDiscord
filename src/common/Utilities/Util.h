@@ -22,5 +22,35 @@
 #include <string_view>
 
 WH_COMMON_API bool StringEqualI(std::string_view str1, std::string_view str2);
+WH_COMMON_API std::string GetLowerString(std::string_view str);
+
+namespace Warhead::Impl
+{
+    WH_COMMON_API std::string ByteArrayToHexStr(uint8 const* bytes, size_t length, bool reverse = false);
+    WH_COMMON_API void HexStrToByteArray(std::string_view str, uint8* out, size_t outlen, bool reverse = false);
+}
+
+template<typename Container>
+std::string ByteArrayToHexStr(Container const& c, bool reverse = false)
+{
+    return Warhead::Impl::ByteArrayToHexStr(std::data(c), std::size(c), reverse);
+}
+
+template<size_t Size>
+void HexStrToByteArray(std::string_view str, std::array<uint8, Size>& buf, bool reverse = false)
+{
+    Warhead::Impl::HexStrToByteArray(str, buf.data(), Size, reverse);
+}
+
+template<size_t Size>
+std::array<uint8, Size> HexStrToByteArray(std::string_view str, bool reverse = false)
+{
+    std::array<uint8, Size> arr;
+    HexStrToByteArray(str, arr, reverse);
+    return arr;
+}
+
+// UTF8 handling
+WH_COMMON_API bool Utf8toWStr(std::string_view utf8str, std::wstring& wstr);
 
 #endif

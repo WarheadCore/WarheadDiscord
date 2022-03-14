@@ -30,7 +30,7 @@ namespace Warhead::TimeDiff // in us
     constexpr uint64 DAYS = 24 * HOURS;
 }
 
-std::string Warhead::Time::ToTimeString(Microseconds durationTime, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
+std::string Warhead::Time::ToTimeString(Microseconds durationTime, uint8 outCount /*= 3*/, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
 {
     uint64 microsecs = durationTime.count() % 1000;
     uint64 millisecs = (durationTime.count() / TimeDiff::MILLISECONDS) % 1000;
@@ -41,13 +41,13 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, TimeFormat ti
 
     std::string out;
     uint8 count = 0;
-    bool isFirst = false;    
+    bool isFirst = false;
 
     if (timeFormat == TimeFormat::Numeric)
     {
-        auto AddOutNumerlic = [&isFirst, &out, &count, timeFormat](uint64 time)
+        auto AddOutNumerlic = [&isFirst, &out, &count, outCount](uint64 time)
         {
-            if (count >= 3)
+            if (count >= outCount)
                 return;
 
             if (!isFirst)
@@ -86,9 +86,9 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, TimeFormat ti
         return out;
     }
 
-    auto AddOut = [&out, &count, timeFormat](uint32 timeCount, std::string_view shortText, std::string_view fullText1, std::string_view fullText)
+    auto AddOut = [&out, &count, timeFormat, outCount](uint32 timeCount, std::string_view shortText, std::string_view fullText1, std::string_view fullText)
     {
-        if (count >= 3)
+        if (count >= outCount)
             return;
 
         out.append(Warhead::ToString(timeCount));
@@ -127,30 +127,6 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, TimeFormat ti
         AddOut(microsecs, "us ", " Microsecond ", " Microseconds ");
 
     return Warhead::String::TrimRightInPlace(out);
-}
-
-template<>
-WH_COMMON_API std::string Warhead::Time::ToTimeString<Microseconds>(uint64 durationTime, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
-{
-    return ToTimeString(Microseconds(durationTime), timeFormat);
-}
-
-template<>
-WH_COMMON_API std::string Warhead::Time::ToTimeString<Milliseconds>(uint64 durationTime, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
-{
-    return ToTimeString<Microseconds>(durationTime * TimeDiff::MILLISECONDS, timeFormat);
-}
-
-template<>
-WH_COMMON_API std::string Warhead::Time::ToTimeString<Seconds>(uint64 durationTime, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
-{
-    return ToTimeString<Microseconds>(durationTime * TimeDiff::SECONDS, timeFormat);
-}
-
-template<>
-WH_COMMON_API std::string Warhead::Time::ToTimeString<Minutes>(uint64 durationTime, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
-{
-    return ToTimeString<Microseconds>(durationTime * TimeDiff::MINUTES, timeFormat);
 }
 
 #if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
@@ -226,84 +202,4 @@ std::string Warhead::Time::TimeToHumanReadable(Seconds time /*= 0s*/, std::strin
 
     ss << std::put_time(std::localtime(&t), format.c_str());
     return ss.str();
-}
-
-uint32 Warhead::Time::GetSeconds(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_sec;
-}
-
-uint32 Warhead::Time::GetMinutes(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_min;
-}
-
-uint32 Warhead::Time::GetHours(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_hour;
-}
-
-uint32 Warhead::Time::GetDayInWeek(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_wday;
-}
-
-uint32 Warhead::Time::GetDayInMonth(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_mday;
-}
-
-uint32 Warhead::Time::GetDayInYear(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_yday;
-}
-
-uint32 Warhead::Time::GetMonth(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_mon;
-}
-
-uint32 Warhead::Time::GetYear(Seconds time /*= 0s*/)
-{
-    if (time == 0s)
-    {
-        time = GetEpochTime();
-    }
-
-    return TimeBreakdown(time.count()).tm_year;
 }

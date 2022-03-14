@@ -33,10 +33,19 @@ namespace
     std::mutex _configLock;
     bool _usingDistConfig = false;
 
+    // Check logging system configs like LogChannel.* and Logger.*
+    bool IsLoggingSystemOptions(std::string_view optionName)
+    {
+        size_t foundChannel = optionName.find("LogChannel.");
+        size_t foundLogger = optionName.find("Logger.");
+
+        return foundChannel != std::string_view::npos || foundLogger != std::string_view::npos;
+    }
+
     template<typename... Args>
     inline void PrintError(std::string_view fmt, Args&& ... args)
     {
-        LOG_ERROR("config", fmt, std::forward<Args>(args)...);
+        fmt::print(fmt, std::forward<Args>(args)...);
     }
 
     void AddKey(std::string const& optionName, std::string const& optionKey, std::string_view fileName, bool isOptional, [[maybe_unused]] bool isReload)
@@ -46,7 +55,7 @@ namespace
         // Check old option
         if (isOptional && itr == _configOptions.end())
         {
-            if (!isReload)
+            if (!IsLoggingSystemOptions(optionName) && !isReload)
             {
                 PrintError("> Config::LoadFile: Found incorrect option '{}' in config file '{}'. Skip", optionName, fileName);
 
@@ -299,6 +308,12 @@ std::vector<std::string> ConfigMgr::GetKeysByString(std::string const& name)
     return keys;
 }
 
+std::string const ConfigMgr::GetFilename()
+{
+    std::lock_guard<std::mutex> lock(_configLock);
+    return _usingDistConfig ? _filename + ".dist" : _filename;
+}
+
 std::string const ConfigMgr::GetConfigPath()
 {
     std::lock_guard<std::mutex> lock(_configLock);
@@ -317,7 +332,7 @@ bool ConfigMgr::LoadAppConfigs(std::string_view initFileName)
     // #1 - Load init config file .conf.dist
     if (!LoadInitial(_filename + ".dist"))
     {
-        FMT_LOG_ERROR("> Bad file path for config file '{}'", _filename);
+        fmt::print("> Bad file path for config file '{}'", _filename);
         return false;
     }
 

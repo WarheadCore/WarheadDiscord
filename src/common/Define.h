@@ -78,10 +78,22 @@
 #  define WH_COMMON_API WH_API_IMPORT
 #endif
 
+#ifdef WARHEAD_API_EXPORT_DATABASE
+#  define WH_DATABASE_API WH_API_EXPORT
+#else
+#  define WH_DATABASE_API WH_API_IMPORT
+#endif
+
 #ifdef WARHEAD_API_EXPORT_SHARED
 #  define WH_SHARED_API WH_API_EXPORT
 #else
 #  define WH_SHARED_API WH_API_IMPORT
+#endif
+
+#ifdef WARHEAD_API_EXPORT_DISCORD
+#  define WH_DISCORD_API WH_API_EXPORT
+#else
+#  define WH_DISCORD_API WH_API_IMPORT
 #endif
 
 typedef std::int64_t int64;

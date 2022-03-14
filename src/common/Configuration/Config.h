@@ -35,6 +35,7 @@ public:
 
     static ConfigMgr* instance();
 
+    std::string const GetFilename();
     std::string const GetConfigPath();
 
     std::vector<std::string> GetKeysByString(std::string const& name);

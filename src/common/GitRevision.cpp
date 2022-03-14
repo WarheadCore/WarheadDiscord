@@ -68,6 +68,11 @@ char const* GitRevision::GetSourceDirectory()
     return _SOURCE_DIRECTORY;
 }
 
+char const* GitRevision::GetMySQLExecutable()
+{
+    return _MYSQL_EXECUTABLE;
+}
+
 #if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
 #  ifdef _WIN64
 #    define WARHEAD_PLATFORM_STR "Win64"

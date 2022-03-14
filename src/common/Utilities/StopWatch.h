@@ -26,34 +26,37 @@ class StopWatch
     using clock = std::chrono::steady_clock;
 
 public:
-    StopWatch()
-        : _startTime{ clock::now() } {}
+    StopWatch(uint8 outCount = 3)
+        : _startTime{ clock::now() }, _outCount{ outCount } {}
 
-    Microseconds elapsed() const
+    Microseconds Elapsed() const
     {
         return std::chrono::duration_cast<Microseconds>(clock::now() - _startTime);
     }
 
-    void reset()
+    void Reset()
     {
         _startTime = clock::now();
     }
 
+    uint8 GetOutCount() const
+    {
+        return _outCount;
+    }
+
 private:
     std::chrono::time_point<clock> _startTime;
+    uint8 _outCount;
 };
 
-namespace fmt
+template<>
+struct fmt::formatter<StopWatch> : formatter<string_view>
 {
-    template<>
-    struct formatter<StopWatch> : formatter<string_view>
+    template<typename FormatContext>
+    auto format(const StopWatch& sw, FormatContext& ctx) -> decltype(ctx.out())
     {
-        template<typename FormatContext>
-        auto format(const StopWatch& sw, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            return formatter<string_view>::format(Warhead::Time::ToTimeString(sw.elapsed()), ctx);
-        }
-    };
-}
+        return formatter<string_view>::format(Warhead::Time::ToTimeString(sw.Elapsed(), sw.GetOutCount()), ctx);
+    }
+};
 
 #endif

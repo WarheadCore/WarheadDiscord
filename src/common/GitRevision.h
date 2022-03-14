@@ -32,6 +32,7 @@ namespace GitRevision
     WH_COMMON_API char const* GetHostOSVersion();
     WH_COMMON_API char const* GetBuildDirectory();
     WH_COMMON_API char const* GetSourceDirectory();
+    WH_COMMON_API char const* GetMySQLExecutable();
     WH_COMMON_API char const* GetFullVersion();
     WH_COMMON_API char const* GetCompanyNameStr();
     WH_COMMON_API char const* GetLegalCopyrightStr();
