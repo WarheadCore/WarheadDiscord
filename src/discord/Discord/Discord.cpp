@@ -119,9 +119,7 @@ void Discord::AddSession(DiscordSession* session)
     }
 
     _sessions[session->GetAccountId()] = session;
-
     session->SendAuthResponse(DiscordAuthResponseCodes::Ok);
-
     UpdateMaxSessionCounters();
 }
 
@@ -163,7 +161,6 @@ void Discord::SetInitialDiscordSettings()
     LOG_INFO("server.loading", " ");
 }
 
-/// Update the Discord !
 void Discord::Update(uint32 diff)
 {
     ///- Update the game time and check for shutdown time
@@ -177,7 +174,7 @@ void Discord::Update(uint32 diff)
     sDiscordUpdateTime.RecordUpdateTime(getMSTime(), diff, GetActiveSessionCount());
 
     /// <li> Handle session updates when the timer has passed
-    UpdateSessions(diff);
+    UpdateSessions();
 
     _scheduler.Update(diff);
 }
@@ -280,21 +277,17 @@ void Discord::ShutdownCancel()
     LOG_WARN("server", "Server restart cancelled.");
 }
 
-void Discord::UpdateSessions(uint32 diff)
+void Discord::UpdateSessions()
 {
-    ///- Then send an update signal to remaining ones
     for (auto& [accountId, session] : _sessions)
     {
-        ///- and remove not active sessions from the list
-        PacketFilter updater(session);
-
         if (session->HandleSocketClosed())
         {
             _sessions.erase(accountId);
             continue;
         }
 
-        if (!session->Update(diff, updater))
+        if (!session->Update())
         {
             _sessions.erase(accountId);
             delete session;

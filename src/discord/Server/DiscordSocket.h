@@ -21,7 +21,6 @@
 #include "AuthCrypt.h"
 #include "Define.h"
 #include "MPSCQueue.h"
-#include "ServerPktHeader.h"
 #include "Socket.h"
 #include "Util.h"
 #include "DiscordPacket.h"
@@ -30,17 +29,6 @@
 
 using boost::asio::ip::tcp;
 
-class EncryptablePacket : public DiscordPacket
-{
-public:
-    EncryptablePacket(DiscordPacket const& packet) : DiscordPacket(packet)
-    {
-        SocketQueueLink.store(nullptr, std::memory_order_relaxed);
-    }
-
-    std::atomic<EncryptablePacket*> SocketQueueLink;
-};
-
 namespace DiscordPackets
 {
     class ServerPacket;
@@ -48,15 +36,6 @@ namespace DiscordPackets
 
 struct AuthSession;
 enum class DiscordAuthResponseCodes : uint8;
-
-struct ClientPacketHeader
-{
-    ClientPacketHeader(MessageBuffer& buffer);
-
-    uint8 Command;
-
-    bool IsValidOpcode() const { return Command < NUM_OPCODE_HANDLERS; }
-};
 
 class WH_DISCORD_API DiscordSocket : public Socket<DiscordSocket>
 {
@@ -91,11 +70,11 @@ protected:
     ReadDataHandlerResult ReadDataHandler();
 
 private:
-    //void CheckIpCallback(PreparedQueryResult result);
+    void CheckIpCallback(PreparedQueryResult result);
 
     /// writes network.opcode log
     /// accessing DiscordSession is not threadsafe, only do it when holding _worldSessionLock
-    void LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const;
+    void LogOpcodeText(OpcodeClient opcode) const;
 
     /// sends and logs network.opcode without accessing DiscordSession
     void SendPacketAndLogOpcode(DiscordPacket const& packet);
@@ -114,8 +93,9 @@ private:
     DiscordSession* _worldSession;
     bool _authed;
 
+    MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;
-    MPSCQueue<EncryptablePacket, &EncryptablePacket::SocketQueueLink> _bufferQueue;
+    MPSCQueue<DiscordPacket> _bufferQueue;
     std::size_t _sendBufferSize;
 
     QueryCallbackProcessor _queryProcessor;

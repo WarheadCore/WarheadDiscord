@@ -154,7 +154,7 @@ int main(int argc, char** argv)
     std::shared_ptr<void> sDiscordSocketMgrHandle(nullptr, [](void*)
     {
         sDiscord->KickAll();              // save and kick all players
-        sDiscord->UpdateSessions(1);      // real players unload required UpdateSessions call
+        sDiscord->UpdateSessions();       // real players unload required UpdateSessions call
 
         sDiscordSocketMgr.StopNetwork();
 

@@ -25,7 +25,7 @@
 #include "DiscordSession.h"
 #include "DiscordSharedDefines.h"
 #include "Discord.h"
-#include <memory>
+#include "DiscordPacketHeader.h"
 
 using boost::asio::ip::tcp;
 
@@ -33,83 +33,74 @@ DiscordSocket::DiscordSocket(tcp::socket&& socket)
     : Socket(std::move(socket)), _OverSpeedPings(0), _worldSession(nullptr), _authed(false), _sendBufferSize(4096)
 {
     //Warhead::Crypto::GetRandomBytes(_authSeed);
+    _headerBuffer.Resize(sizeof(DiscordClientPktHeader));
 }
 
 DiscordSocket::~DiscordSocket() = default;
 
 void DiscordSocket::Start()
 {
-    /*std::string ip_address = GetRemoteIpAddress().to_string();
-    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_IP_INFO);
-    stmt->SetData(0, ip_address);
+    DiscordDatabasePreparedStatement* stmt = DiscordDatabase.GetPreparedStatement(DISCORD_SEL_IP_INFO);
+    stmt->SetArguments(GetRemoteIpAddress().to_string());
 
-    _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&DiscordSocket::CheckIpCallback, this, std::placeholders::_1)));*/
+    _queryProcessor.AddCallback(DiscordDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&DiscordSocket::CheckIpCallback, this, std::placeholders::_1)));
 
     LOG_INFO("server", "> Connect from {}", GetRemoteIpAddress().to_string());
+}
+
+void DiscordSocket::CheckIpCallback(PreparedQueryResult result)
+{
+    if (result)
+    {
+        bool banned = false;
+        do
+        {
+            Field* fields = result->Fetch();
+            if (fields[0].Get<uint64>() != 0)
+                banned = true;
+
+        } while (result->NextRow());
+
+        if (banned)
+        {
+            SendAuthResponseError(DiscordAuthResponseCodes::Banned);
+            LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response (IP {} banned).", GetRemoteIpAddress().to_string());
+            DelayedCloseSocket();
+            return;
+        }
+    }
 
     AsyncRead();
 }
 
-//void DiscordSocket::CheckIpCallback(PreparedQueryResult result)
-//{
-//    if (result)
-//    {
-//        bool banned = false;
-//        do
-//        {
-//            Field* fields = result->Fetch();
-//            if (fields[0].Get<uint64>() != 0)
-//                banned = true;
-//
-//        } while (result->NextRow());
-//
-//        if (banned)
-//        {
-//            SendAuthResponseError(AUTH_REJECT);
-//            LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response (IP {} banned).", GetRemoteIpAddress().to_string());
-//            DelayedCloseSocket();
-//            return;
-//        }
-//    }
-//
-//    AsyncRead();
-//    HandleSendAuthSession();
-//}
-
 bool DiscordSocket::Update()
 {
-    EncryptablePacket* queued;
+    DiscordPacket* queued{ nullptr };
     MessageBuffer buffer(_sendBufferSize);
 
     while (_bufferQueue.Dequeue(queued))
     {
-        ServerPktHeader header(queued->size() + 2, queued->GetOpcode());
-
-        if (buffer.GetRemainingSpace() < queued->size() + header.getHeaderLength())
+        DiscordServerPktHeader header(queued->size() + sizeof(queued->GetOpcode()), queued->GetOpcode());
+        if (buffer.GetRemainingSpace() < queued->size() + header.GetHeaderLength())
         {
             QueuePacket(std::move(buffer));
-            buffer.Resize(_sendBufferSize);
-            LOG_WARN("server", "buffer.Resize(_sendBufferSize);");
+            //buffer.Resize(_sendBufferSize);
         }
 
-        if (buffer.GetRemainingSpace() >= queued->size() + header.getHeaderLength())
+        if (buffer.GetRemainingSpace() >= queued->size() + header.GetHeaderLength())
         {
-            buffer.Write(header.header, header.getHeaderLength());
-
+            buffer.Write(header.header, header.GetHeaderLength());
             if (!queued->empty())
                 buffer.Write(queued->contents(), queued->size());
         }
         else // single packet larger than 4096 bytes
         {
-            MessageBuffer packetBuffer(queued->size() + header.getHeaderLength());
-            packetBuffer.Write(header.header, header.getHeaderLength());
-
+            MessageBuffer packetBuffer(queued->size() + header.GetHeaderLength());
+            packetBuffer.Write(header.header, header.GetHeaderLength());
             if (!queued->empty())
                 packetBuffer.Write(queued->contents(), queued->size());
 
             QueuePacket(std::move(packetBuffer));
-
-            LOG_WARN("server", "buffer.GetRemainingSpace() >= queued->size() + header.getHeaderLength() (else)");
         }
 
         delete queued;
@@ -142,30 +133,49 @@ void DiscordSocket::ReadHandler()
 
     MessageBuffer& packet = GetReadBuffer();
 
-    while (packet.GetActiveSize())
+    while (packet.GetActiveSize() > 0)
     {
-        //// need to receive the header
-        _packetBuffer.Resize(packet.GetActiveSize());
-        _packetBuffer.Write(packet.GetReadPointer(), packet.GetActiveSize());
-
-        packet.ReadCompleted(_packetBuffer.GetActiveSize());
-
-        // We just received nice new header
-        if (!ReadHeaderHandler())
+        if (_headerBuffer.GetRemainingSpace() > 0)
         {
-            CloseSocket();
-            return;
+            // need to receive the header
+            std::size_t readHeaderSize = std::min(packet.GetActiveSize(), _headerBuffer.GetRemainingSpace());
+            _headerBuffer.Write(packet.GetReadPointer(), readHeaderSize);
+            packet.ReadCompleted(readHeaderSize);
+
+            if (_headerBuffer.GetRemainingSpace() > 0)
+            {
+                // Couldn't receive the whole header this time.
+                ASSERT(packet.GetActiveSize() == 0);
+                break;
+            }
+
+            // We just received nice new header
+            if (!ReadHeaderHandler())
+            {
+                CloseSocket();
+                return;
+            }
         }
 
+        // We have full read header, now check the data payload
         if (_packetBuffer.GetRemainingSpace() > 0)
         {
-            // Couldn't receive the whole header this time.
-            ASSERT(packet.GetActiveSize() == 0);
-            break;
+            // need more data in the payload
+            std::size_t readDataSize = std::min(packet.GetActiveSize(), _packetBuffer.GetRemainingSpace());
+            _packetBuffer.Write(packet.GetReadPointer(), readDataSize);
+            packet.ReadCompleted(readDataSize);
+
+            if (_packetBuffer.GetRemainingSpace() > 0)
+            {
+                // Couldn't receive the whole data this time.
+                ASSERT(packet.GetActiveSize() == 0);
+                break;
+            }
         }
 
         // just received fresh new payload
         ReadDataHandlerResult result = ReadDataHandler();
+        _headerBuffer.Reset();
         if (result != ReadDataHandlerResult::Ok)
         {
             if (result != ReadDataHandlerResult::WaitingForQuery)
@@ -178,26 +188,26 @@ void DiscordSocket::ReadHandler()
     AsyncRead();
 }
 
-ClientPacketHeader::ClientPacketHeader(MessageBuffer& buffer)
-{
-    Command = buffer.GetReadPointer()[0];
-}
-
 bool DiscordSocket::ReadHeaderHandler()
 {
-    ClientPacketHeader header = ClientPacketHeader(_packetBuffer);
+    ASSERT(_headerBuffer.GetActiveSize() == sizeof(DiscordClientPktHeader));
 
-    if (!header.IsValidOpcode())
+    DiscordClientPktHeader* header = reinterpret_cast<DiscordClientPktHeader*>(_headerBuffer.GetReadPointer());
+    EndianConvertReverse(header->size);
+    EndianConvert(header->cmd);
+
+    if (!header->IsValidSize() || !header->IsValidOpcode())
     {
-        LOG_ERROR("network", "DiscordSocket::ReadHeaderHandler(): client {} sent malformed packet (cmd: {})",
-            GetRemoteIpAddress().to_string(), header.Command);
+        OpcodeClient nodeCode = static_cast<OpcodeClient>(header->cmd);
+
+        LOG_ERROR("network", "DiscordSocket::ReadHeaderHandler(): client {} sent malformed packet (size: {}, {})",
+            GetRemoteIpAddress().to_string(), header->size, header->cmd, GetOpcodeNameForLogging(nodeCode));
 
         return false;
     }
 
-    LOG_INFO("network", "DiscordSocket::ReadHeaderHandler(): client {} sent packet (cmd: {})",
-        GetRemoteIpAddress().to_string(), header.Command);
-
+    header->size -= sizeof(header->cmd);
+    _packetBuffer.Resize(header->size);
     return true;
 }
 
@@ -220,14 +230,11 @@ struct AccountInfo
 
 DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
 {
-    auto const& header = ClientPacketHeader(_packetBuffer);
-    OpcodeClient opcode = static_cast<OpcodeClient>(header.Command);
+    DiscordClientPktHeader* header = reinterpret_cast<DiscordClientPktHeader*>(_headerBuffer.GetReadPointer());
+    OpcodeClient opcode = static_cast<OpcodeClient>(header->cmd);
 
     DiscordPacket packet(opcode, std::move(_packetBuffer));
     DiscordPacket* packetToQueue;
-
-    // Skip cmd
-    packet.read_skip<decltype(header.Command)>();
 
     std::unique_lock<std::mutex> sessionGuard(_worldSessionLock, std::defer_lock);
 
@@ -235,7 +242,7 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
     {
         case CLIENT_AUTH_SESSION:
         {
-            LogOpcodeText(opcode, sessionGuard);
+            LogOpcodeText(opcode);
             if (_authed)
             {
                 // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
@@ -265,7 +272,7 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
 
     sessionGuard.lock();
 
-    LogOpcodeText(opcode, sessionGuard);
+    LogOpcodeText(opcode);
 
     if (!_worldSession)
     {
@@ -283,21 +290,14 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
     }
 
     // Copy the packet to the heap before enqueuing
-    _worldSession->QueuePacket(packetToQueue);
+    _worldSession->QueuePacket(*packetToQueue);
 
     return ReadDataHandlerResult::Ok;
 }
 
-void DiscordSocket::LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const
+void DiscordSocket::LogOpcodeText(OpcodeClient opcode) const
 {
-    if (!guard)
-    {
-        LOG_TRACE("network.opcode", "C->S: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(opcode));
-    }
-    else
-    {
-        LOG_TRACE("network.opcode", "C->S: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(opcode));
-    }
+    LOG_TRACE("network.opcode", "C->S: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(opcode));
 }
 
 void DiscordSocket::SendPacketAndLogOpcode(DiscordPacket const& packet)
@@ -311,7 +311,7 @@ void DiscordSocket::SendPacket(DiscordPacket const& packet)
     if (!IsOpen())
         return;
 
-    _bufferQueue.Enqueue(new EncryptablePacket(packet));
+    _bufferQueue.Enqueue(new DiscordPacket(packet));
 }
 
 void DiscordSocket::HandleAuthSession(DiscordPacket& recvPacket)
@@ -320,7 +320,7 @@ void DiscordSocket::HandleAuthSession(DiscordPacket& recvPacket)
 
     // Read the content of the packet
     recvPacket >> authSession->Account;
-    recvPacket >> authSession->ClientVersion;
+    //recvPacket >> authSession->ClientVersion;
     //recvPacket >> authSession->Digest;
 
     // Get the account information from the auth database

@@ -22,7 +22,7 @@
 #include "AsyncCallbackProcessor.h"
 #include "DatabaseEnvFwd.h"
 #include "DiscordSharedDefines.h"
-#include "LockedQueue.h"
+#include "PacketQueue.h"
 #include "Packet.h"
 #include <map>
 #include <utility>
@@ -49,18 +49,6 @@ namespace DiscordPackets
     }
 }
 
-class WH_DISCORD_API PacketFilter
-{
-public:
-    explicit PacketFilter(DiscordSession* session) : _session(session) {}
-    ~PacketFilter() = default;
-
-    bool Process(DiscordPacket* packet);
-
-protected:
-    DiscordSession* const _session;
-};
-
 /// Player session in the Discord
 class WH_DISCORD_API DiscordSession
 {
@@ -73,15 +61,15 @@ public:
     uint32 GetAccountId() const { return _accountId; }
     std::string const& GetRemoteAddress() { return _address; }
 
-    void QueuePacket(DiscordPacket* new_packet);
-    bool Update(uint32 diff, PacketFilter& updater);
+    void QueuePacket(DiscordPacket const& packet);
+    bool Update();
 
     void KickSession(bool setKicked = true) { return KickSession("Unknown reason", setKicked); }
     void KickSession(std::string_view reason, bool setKicked = true);
     void SetKicked(bool val) { _kicked = val; }
 
-    uint32 GetLatency() const { return m_latency; }
-    void SetLatency(uint32 latency) { m_latency = latency; }
+    uint32 GetLatency() const { return _latency; }
+    void SetLatency(uint32 latency) { _latency = latency; }
 
     // Packets
 
@@ -127,9 +115,9 @@ private:
     std::string _address;
     uint32 _accountId;
     std::string _accountName;
-    std::atomic<uint32> m_latency;
+    std::atomic<uint32> _latency;
     bool _kicked{ false };
-    LockedQueue<DiscordPacket*> _recvQueue;
+    PacketQueue<DiscordPacket> _recvQueue;
 
     DiscordSession(DiscordSession const& right) = delete;
     DiscordSession& operator=(DiscordSession const& right) = delete;

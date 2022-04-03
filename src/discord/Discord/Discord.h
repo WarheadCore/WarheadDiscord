@@ -15,12 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __WORLD_H
-#define __WORLD_H
+#ifndef _DISCORD_H_
+#define _DISCORD_H_
 
 #include "Define.h"
 #include "DatabaseEnvFwd.h"
-#include "LockedQueue.h"
 #include "Timer.h"
 #include "TaskScheduler.h"
 #include <atomic>
@@ -93,7 +92,7 @@ public:
     static bool IsStopped() { return m_stopEvent; }
 
     void Update(uint32 diff);
-    void UpdateSessions(uint32 diff);
+    void UpdateSessions();
 
     void KickAll();
 

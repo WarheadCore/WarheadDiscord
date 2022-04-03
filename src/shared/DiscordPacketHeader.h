@@ -15,48 +15,48 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SERVERPKTHDR_H__
-#define __SERVERPKTHDR_H__
+#ifndef __DISCORD_PACKET_HEADER_H__
+#define __DISCORD_PACKET_HEADER_H__
 
-#include "Log.h"
+#include "Define.h"
+#include "Opcodes.h"
 
 #pragma pack(push, 1)
-
-struct ServerPktHeader
+struct DiscordServerPktHeader
 {
     /**
      * size is the length of the payload _plus_ the length of the opcode
      */
-    ServerPktHeader(uint32 size, uint16 cmd) : size(size)
+    DiscordServerPktHeader(uint32 size, uint16 cmd) : size(size)
     {
-        uint8 headerIndex=0;
-        if (isLargePacket())
-        {
-            LOG_DEBUG("network", "initializing large server to client packet. Size: {}, cmd: {}", size, cmd);
-            header[headerIndex++] = 0x80 | (0xFF & (size >> 16));
-        }
-        header[headerIndex++] = 0xFF &(size >> 8);
+        uint8 headerIndex{ 0 };
+        header[headerIndex++] = 0xFF & (size >> 24);
+        header[headerIndex++] = 0xFF & (size >> 16);
+        header[headerIndex++] = 0xFF & (size >> 8);
         header[headerIndex++] = 0xFF & size;
 
         header[headerIndex++] = 0xFF & cmd;
         header[headerIndex++] = 0xFF & (cmd >> 8);
     }
 
-    uint8 getHeaderLength()
+    uint8 GetHeaderLength()
     {
-        // cmd = 2 bytes, size= 2||3bytes
-        return 2 + (isLargePacket() ? 3 : 2);
-    }
-
-    bool isLargePacket() const
-    {
-        return size > 0x7FFF;
+        // cmd = 2 bytes, size = 4 bytes
+        return sizeof(header);
     }
 
     const uint32 size;
-    uint8 header[5];
+    uint8 header[sizeof(uint32) + sizeof(uint16)];
 };
 
+struct DiscordClientPktHeader
+{
+    uint32 size;
+    uint16 cmd;
+
+    bool IsValidSize() const { return size >= 2 && size < 10000; }
+    bool IsValidOpcode() const { return cmd < NUM_OPCODE_HANDLERS; }
+};
 #pragma pack(pop)
 
 #endif

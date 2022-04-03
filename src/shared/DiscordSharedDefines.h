@@ -18,7 +18,28 @@
 #ifndef __DISCORD_SHARED_DEFINES_H__
 #define __DISCORD_SHARED_DEFINES_H__
 
-#include "Define.h" 
+#include "Define.h"
+
+ /// List of Opcodes
+enum DiscordCode : uint16
+{
+    // Client
+    CLIENT_SEND_HELLO = 1,
+    CLIENT_AUTH_SESSION,
+    CLIENT_SEND_MESSAGE,
+    CLIENT_SEND_MESSAGE_EMBED,
+
+    // Server
+    SERVER_SEND_AUTH_RESPONSE,
+
+    NUM_MSG_TYPES
+};
+
+enum OpcodeMisc : uint16
+{
+    NUM_OPCODE_HANDLERS = NUM_MSG_TYPES,
+    NULL_OPCODE = 0x0000
+};
 
 enum class DiscordAuthResponseCodes : uint8
 {

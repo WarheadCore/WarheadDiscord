@@ -25,25 +25,12 @@
 #include "DiscordSocket.h"
 #include "Timer.h"
 
-bool PacketFilter::Process(DiscordPacket* packet)
-{
-    ClientOpcodeHandler const* opHandle = opcodeTable[static_cast<OpcodeClient>(packet->GetOpcode())];
-
-    if (!_session)
-        return false;
-
-    if (packet->GetOpcode() == NULL_OPCODE || packet->GetOpcode() >= NUM_OPCODE_HANDLERS)
-        return false;
-
-    return true;
-}
-
 /// DiscordSession constructor
 DiscordSession::DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock) :
     _accountId(id),
     _accountName(std::move(name)),
     _socket(sock),
-    m_latency(0)
+    _latency(0)
 {
     if (_socket)
         _address = _socket->GetRemoteIpAddress().to_string();
@@ -58,11 +45,6 @@ DiscordSession::~DiscordSession()
         _socket->CloseSocket();
         _socket = nullptr;
     }
-
-    ///- empty incoming packet queue
-    DiscordPacket* packet = nullptr;
-    while (_recvQueue.next(packet))
-        delete packet;
 }
 
 /// Send a packet to the client
@@ -77,49 +59,14 @@ void DiscordSession::SendPacket(DiscordPacket const* packet)
     if (!_socket)
         return;
 
-#if defined(WARHEAD_DEBUG)
-    // Code for network use statistic
-    static uint64 sendPacketCount = 0;
-    static uint64 sendPacketBytes = 0;
-
-    static time_t firstTime = GetEpochTime().count();
-    static time_t lastTime = firstTime;                     // next 60 secs start time
-
-    static uint64 sendLastPacketCount = 0;
-    static uint64 sendLastPacketBytes = 0;
-
-    time_t cur_time = GetEpochTime().count();
-
-    if ((cur_time - lastTime) < 60)
-    {
-        sendPacketCount += 1;
-        sendPacketBytes += packet->size();
-
-        sendLastPacketCount += 1;
-        sendLastPacketBytes += packet->size();
-    }
-    else
-    {
-        uint64 minTime = uint64(cur_time - lastTime);
-        uint64 fullTime = uint64(lastTime - firstTime);
-
-        LOG_DEBUG("network", "Send all time packets count: {} bytes: {} avr.count/sec: {} avr.bytes/sec: {} time: {}", sendPacketCount, sendPacketBytes, float(sendPacketCount) / fullTime, float(sendPacketBytes) / fullTime, uint32(fullTime));
-        LOG_DEBUG("network", "Send last min packets count: {} bytes: {} avr.count/sec: {} avr.bytes/sec: {}", sendLastPacketCount, sendLastPacketBytes, float(sendLastPacketCount) / minTime, float(sendLastPacketBytes) / minTime);
-
-        lastTime = cur_time;
-        sendLastPacketCount = 1;
-        sendLastPacketBytes = packet->wpos();               // wpos is real written size
-    }
-#endif // !WARHEAD_DEBUG
-
     LOG_TRACE("network.opcode", "S->C: {}", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())));
     _socket->SendPacket(*packet);
 }
 
 /// Add an incoming packet to the queue
-void DiscordSession::QueuePacket(DiscordPacket* new_packet)
+void DiscordSession::QueuePacket(DiscordPacket const& packet)
 {
-    _recvQueue.add(new_packet);
+    _recvQueue.AddPacket(new DiscordPacket(packet));
 }
 
 /// Logging helper for unexpected opcodes
@@ -142,19 +89,13 @@ void DiscordSession::LogUnprocessedTail(DiscordPacket* packet)
 }
 
 /// Update the DiscordSession (triggered by Discord update)
-bool DiscordSession::Update(uint32 diff, PacketFilter& updater)
+bool DiscordSession::Update()
 {
-    ///- Retrieve packets from the receive queue and call the appropriate handlers
-    /// not process packets if socket already closed
-    DiscordPacket* packet = nullptr;
-
-    //! Delete packet after processing by default
-    bool deletePacket = true;
-    std::vector<DiscordPacket*> requeuePackets;
+    DiscordPacket* packet{ nullptr };
     uint32 processedPackets = 0;
     time_t currentTime = GetEpochTime().count();
 
-    while (_socket && _recvQueue.next(packet, updater))
+    while (_socket && _recvQueue.GetNextPacket(packet))
     {
         OpcodeClient opcode = static_cast<OpcodeClient>(packet->GetOpcode());
         ClientOpcodeHandler const* opHandle = opcodeTable[opcode];
@@ -178,21 +119,21 @@ bool DiscordSession::Update(uint32 diff, PacketFilter& updater)
             }
         }
 
-        if (deletePacket)
-            delete packet;
+        delete packet;
 
-        deletePacket = true;
-
-#define MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE 150
         processedPackets++;
 
-        // process only a max amout of packets in 1 Update() call.
-        // Any leftover will be processed in next update
-        if (processedPackets > MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE)
-            break;
+//#define MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE 150
+//        processedPackets++;
+//
+//        // process only a max amout of packets in 1 Update() call.
+//        // Any leftover will be processed in next update
+//        if (processedPackets > MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE)
+//            break;
     }
 
-    _recvQueue.readd(requeuePackets.begin(), requeuePackets.end());
+    if (processedPackets)
+        LOG_DEBUG("server", "{}: {} packages processed", __FUNCTION__, processedPackets);
 
     ProcessQueryCallbacks();
 

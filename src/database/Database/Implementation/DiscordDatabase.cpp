@@ -24,9 +24,7 @@ void DiscordDatabaseConnection::DoPrepareStatements()
         m_stmts.resize(MAX_DISCORD_DATABASE_STATEMENTS);
 
     PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `ID` FROM `account` WHERE `Name` = ? LIMIT 1", CONNECTION_ASYNC);
-
-    PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO `account_discord_link` (`AccountID`, `DiscordUserID`) VALUES (?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(DISCORD_SEL_ACCOUNT, "SELECT `AccountID`, `DiscordUserID` FROM `account_discord_link`", CONNECTION_SYNCH);
+    PrepareStatement(DISCORD_SEL_IP_INFO, "SELECT unbandate > UNIX_TIMESTAMP() OR unbandate = bandate AS banned, NULL as country FROM ip_banned WHERE ip = ?", CONNECTION_ASYNC);
 }
 
 DiscordDatabaseConnection::DiscordDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

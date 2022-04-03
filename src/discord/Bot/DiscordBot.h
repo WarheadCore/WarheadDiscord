@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _DISCORD_H_
-#define _DISCORD_H_
+#ifndef _DISCORD_BOT_H_
+#define _DISCORD_BOT_H_
 
 #include "Define.h"
 #include <memory>
