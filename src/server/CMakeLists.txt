@@ -17,32 +17,32 @@ CollectSourceFiles(
 # Group sources
 GroupSources(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_definitions(-DWARHEAD_API_EXPORT_DISCORD)
+add_definitions(-DWARHEAD_API_EXPORT_SERVER)
 
-add_library(discord
+add_library(server
   ${PRIVATE_SOURCES})
 
 CollectIncludeDirectories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   PUBLIC_INCLUDES)
 
-target_include_directories(discord
+target_include_directories(server
   PUBLIC
     ${PUBLIC_INCLUDES}
   PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(discord
+target_link_libraries(server
   PRIVATE
     warhead-core-interface
     libdpp
   PUBLIC
     shared)
 
-set_target_properties(discord
+set_target_properties(server
   PROPERTIES
     FOLDER
       "src")
 
 # Install dynamic lib
-InstallDynamicLibrary(discord)
+InstallDynamicLibrary(server)

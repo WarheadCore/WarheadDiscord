@@ -50,7 +50,7 @@ namespace DiscordPackets
 }
 
 /// Player session in the Discord
-class WH_DISCORD_API DiscordSession
+class WH_SERVER_API DiscordSession
 {
 public:
     DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock);
@@ -59,6 +59,7 @@ public:
     void SendPacket(DiscordPacket const* packet);
 
     uint32 GetAccountId() const { return _accountId; }
+    std::string const& GetAccountName() const { return _accountName; }
     std::string const& GetRemoteAddress() { return _address; }
 
     void QueuePacket(DiscordPacket const& packet);
@@ -68,8 +69,8 @@ public:
     void KickSession(std::string_view reason, bool setKicked = true);
     void SetKicked(bool val) { _kicked = val; }
 
-    uint32 GetLatency() const { return _latency; }
-    void SetLatency(uint32 latency) { _latency = latency; }
+    Microseconds GetLatency() const { return _latency; }
+    void SetLatency(int64 latency) { _latency = Microseconds{ latency }; }
 
     // Packets
 
@@ -115,7 +116,7 @@ private:
     std::string _address;
     uint32 _accountId;
     std::string _accountName;
-    std::atomic<uint32> _latency;
+    std::atomic<Microseconds> _latency;
     bool _kicked{ false };
     PacketQueue<DiscordPacket> _recvQueue;
 

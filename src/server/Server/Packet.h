@@ -22,7 +22,7 @@
 
 namespace DiscordPackets
 {
-    class WH_DISCORD_API Packet
+    class WH_SERVER_API Packet
     {
     public:
         Packet(DiscordPacket&& discordPacket);
@@ -42,7 +42,7 @@ namespace DiscordPackets
         DiscordPacket _worldPacket;
     };
 
-    class WH_DISCORD_API ServerPacket : public Packet
+    class WH_SERVER_API ServerPacket : public Packet
     {
     public:
         ServerPacket(OpcodeServer opcode, size_t initialSize = 200);
@@ -56,7 +56,7 @@ namespace DiscordPackets
         [[nodiscard]] OpcodeServer GetOpcode() const { return OpcodeServer(_worldPacket.GetOpcode()); }
     };
 
-    class WH_DISCORD_API ClientPacket : public Packet
+    class WH_SERVER_API ClientPacket : public Packet
     {
     public:
         ClientPacket(DiscordPacket&& packet);

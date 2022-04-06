@@ -20,11 +20,14 @@
 #include "DiscordSession.h"
 #include "AuthPackets.h"
 #include "Log.h"
+#include "SmartEnum.h"
 
 void DiscordSession::SendAuthResponse(DiscordAuthResponseCodes code)
 {
     DiscordPackets::Auth::AuthResponse authResponse;
     authResponse.Code = code;
+
+    LOG_INFO("server", "> Send responce code '{}'", EnumUtils::ToTitle(code));
 
     SendPacket(authResponse.Write());
 }

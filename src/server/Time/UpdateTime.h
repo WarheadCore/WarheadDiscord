@@ -24,7 +24,7 @@
 
 constexpr auto AVG_DIFF_COUNT = 500;
 
-class WH_DISCORD_API UpdateTime
+class WH_SERVER_API UpdateTime
 {
 using DiffTableArray = std::array<uint32, AVG_DIFF_COUNT>;
 
@@ -56,7 +56,7 @@ private:
     uint32 _recordedTime;
 };
 
-class WH_DISCORD_API DiscordUpdateTime : public UpdateTime
+class WH_SERVER_API DiscordUpdateTime : public UpdateTime
 {
 public:
     DiscordUpdateTime() : UpdateTime(), _recordUpdateTimeInverval(0), _recordUpdateTimeMin(0), _lastRecordTime(0) { }
@@ -71,6 +71,6 @@ private:
     uint32 _lastRecordTime;
 };
 
-WH_DISCORD_API extern DiscordUpdateTime sDiscordUpdateTime;
+WH_SERVER_API extern DiscordUpdateTime sDiscordUpdateTime;
 
 #endif

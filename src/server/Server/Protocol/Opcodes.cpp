@@ -19,8 +19,6 @@
 #include "Log.h"
 #include "AllPackets.h"
 #include "DiscordSession.h"
-#include <iomanip>
-#include <sstream>
 
 template<class PacketClass, void(DiscordSession::* HandlerFunction)(PacketClass&)>
 class PacketHandler : public ClientOpcodeHandler
@@ -87,7 +85,7 @@ void OpcodeTable::ValidateAndSetClientOpcode(OpcodeClient opcode, std::string_vi
         return;
     }
 
-    if (_internalTableClient[opcode] != nullptr)
+    if (_internalTableClient[opcode])
     {
         LOG_ERROR("network", "Tried to override client handler of {} with {} (opcode {})", opcodeTable[opcode]->Name, name, uint32(opcode));
         return;
@@ -110,7 +108,7 @@ void OpcodeTable::ValidateAndSetServerOpcode(OpcodeServer opcode, std::string_vi
         return;
     }
 
-    if (_internalTableClient[opcode] != nullptr)
+    if (_internalTableClient[opcode])
     {
         LOG_ERROR("network", "Tried to override server handler of {} with {} (opcode {})", opcodeTable[opcode]->Name, name, uint32(opcode));
         return;
@@ -133,9 +131,11 @@ void OpcodeTable::Initialize()
     DEFINE_HANDLER(CLIENT_AUTH_SESSION,             &DiscordSession::Handle_EarlyProccess);
     DEFINE_HANDLER(CLIENT_SEND_MESSAGE,             &DiscordSession::HandleSendDiscordMessageOpcode);
     DEFINE_HANDLER(CLIENT_SEND_MESSAGE_EMBED,       &DiscordSession::HandleSendDiscordEmbedMessageOpcode);
+    DEFINE_HANDLER(CLIENT_SEND_PING,                &DiscordSession::Handle_EarlyProccess);
 
     // Server
     DEFINE_SERVER_OPCODE_HANDLER(SERVER_SEND_AUTH_RESPONSE);
+    DEFINE_SERVER_OPCODE_HANDLER(SERVER_SEND_PONG);
 
 #undef DEFINE_HANDLER
 #undef DEFINE_SERVER_OPCODE_HANDLER
@@ -144,22 +144,21 @@ void OpcodeTable::Initialize()
 template<typename T>
 inline std::string GetOpcodeNameForLoggingImpl(T id)
 {
-    uint16 opcode = uint16(id);
-    std::ostringstream ss;
-    ss << '[';
+    uint16 opcode = static_cast<uint16>(id);
 
-    if (static_cast<uint16>(id) < NUM_OPCODE_HANDLERS)
+    std::string name;
+
+    if (opcode < NUM_OPCODE_HANDLERS)
     {
         if (OpcodeHandler const* handler = opcodeTable[id])
-            ss << handler->Name;
+            name = handler->Name;
         else
-            ss << "UNKNOWN OPCODE";
+            name = "UNKNOWN OPCODE";
     }
     else
-        ss << "INVALID OPCODE";
+        name = "INVALID OPCODE";
 
-    ss << " 0x" << std::hex << std::setw(4) << std::setfill('0') << std::uppercase << opcode << std::nouppercase << std::dec << " (" << opcode << ")]";
-    return ss.str();
+    return Warhead::StringFormat("[{} 0x{:04X} ({})]", name, opcode, opcode);
 }
 
 std::string GetOpcodeNameForLogging(DiscordCode opcode)

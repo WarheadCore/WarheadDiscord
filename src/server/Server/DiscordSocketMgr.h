@@ -23,7 +23,7 @@
 class DiscordSocket;
 
 /// Manages all sockets connected to peers and network threads
-class WH_DISCORD_API DiscordSocketMgr : public SocketMgr<DiscordSocket>
+class WH_SERVER_API DiscordSocketMgr : public SocketMgr<DiscordSocket>
 {
     typedef SocketMgr<DiscordSocket> BaseSocketMgr;
 

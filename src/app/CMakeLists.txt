@@ -32,7 +32,7 @@ macro(GenerateApp dir appName)
     PRIVATE
       warhead-core-interface
     PUBLIC
-      discord)
+      server)
 
   CollectIncludeDirectories(
     ${dir}

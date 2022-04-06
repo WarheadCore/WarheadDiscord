@@ -15,35 +15,28 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __WORLDSOCKET_H__
-#define __WORLDSOCKET_H__
+#ifndef _DISCORD_SOCKET_H_
+#define _DISCORD_SOCKET_H_
 
-#include "AuthCrypt.h"
 #include "Define.h"
 #include "MPSCQueue.h"
 #include "Socket.h"
-#include "Util.h"
 #include "DiscordPacket.h"
 #include "DiscordSession.h"
 #include <boost/asio/ip/tcp.hpp>
 
 using boost::asio::ip::tcp;
 
-namespace DiscordPackets
-{
-    class ServerPacket;
-}
-
 struct AuthSession;
 enum class DiscordAuthResponseCodes : uint8;
 
-class WH_DISCORD_API DiscordSocket : public Socket<DiscordSocket>
+class WH_SERVER_API DiscordSocket : public Socket<DiscordSocket>
 {
     typedef Socket<DiscordSocket> BaseSocket;
 
 public:
     DiscordSocket(tcp::socket&& socket);
-    ~DiscordSocket();
+    ~DiscordSocket() = default;
 
     DiscordSocket(DiscordSocket const& right) = delete;
     DiscordSocket& operator=(DiscordSocket const& right) = delete;
@@ -71,26 +64,19 @@ protected:
 
 private:
     void CheckIpCallback(PreparedQueryResult result);
-
-    /// writes network.opcode log
-    /// accessing DiscordSession is not threadsafe, only do it when holding _worldSessionLock
     void LogOpcodeText(OpcodeClient opcode) const;
-
-    /// sends and logs network.opcode without accessing DiscordSession
     void SendPacketAndLogOpcode(DiscordPacket const& packet);
-    //void HandleSendAuthSession();
     void HandleAuthSession(DiscordPacket& recvPacket);
     void HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSession, PreparedQueryResult result);
-    //void LoadSessionPermissionsCallback(PreparedQueryResult result);
     void SendAuthResponseError(DiscordAuthResponseCodes code);
 
-    //bool HandlePing(DiscordPacket& recvPacket);
+    bool HandlePing(DiscordPacket& recvPacket);
 
     TimePoint _LastPingTime;
     uint32 _OverSpeedPings;
 
-    std::mutex _worldSessionLock;
-    DiscordSession* _worldSession;
+    std::mutex _discordSessionLock;
+    DiscordSession* _discordSession;
     bool _authed;
 
     MessageBuffer _headerBuffer;

@@ -28,7 +28,7 @@
 class MessageBuffer;
 
 // Root of ByteBuffer exception hierarchy
-class WH_DISCORD_API ByteBufferException : public std::exception
+class WH_SERVER_API ByteBufferException : public std::exception
 {
 public:
     ~ByteBufferException() noexcept override = default;
@@ -42,7 +42,7 @@ private:
     std::string msg_;
 };
 
-class WH_DISCORD_API ByteBufferPositionException : public ByteBufferException
+class WH_SERVER_API ByteBufferPositionException : public ByteBufferException
 {
 public:
     ByteBufferPositionException(bool add, size_t pos, size_t size, size_t valueSize);
@@ -50,7 +50,7 @@ public:
     ~ByteBufferPositionException() noexcept override = default;
 };
 
-class WH_DISCORD_API ByteBufferSourceException : public ByteBufferException
+class WH_SERVER_API ByteBufferSourceException : public ByteBufferException
 {
 public:
     ByteBufferSourceException(size_t pos, size_t size, size_t valueSize);
@@ -58,7 +58,7 @@ public:
     ~ByteBufferSourceException() noexcept override = default;
 };
 
-class WH_DISCORD_API ByteBufferInvalidValueException : public ByteBufferException
+class WH_SERVER_API ByteBufferInvalidValueException : public ByteBufferException
 {
 public:
     ByteBufferInvalidValueException(char const* type, char const* value);
@@ -66,7 +66,7 @@ public:
     ~ByteBufferInvalidValueException() noexcept override = default;
 };
 
-class WH_DISCORD_API ByteBuffer
+class WH_SERVER_API ByteBuffer
 {
 public:
     constexpr static size_t DEFAULT_SIZE = 0x1000;

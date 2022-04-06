@@ -26,17 +26,18 @@
 #include "DiscordSharedDefines.h"
 #include "Discord.h"
 #include "DiscordPacketHeader.h"
+#include "SmartEnum.h"
+#include "SRP6.h"
+#include "BanMgr.h"
+#include "GameTime.h"
 
 using boost::asio::ip::tcp;
 
 DiscordSocket::DiscordSocket(tcp::socket&& socket)
-    : Socket(std::move(socket)), _OverSpeedPings(0), _worldSession(nullptr), _authed(false), _sendBufferSize(4096)
+    : Socket(std::move(socket)), _OverSpeedPings(0), _discordSession(nullptr), _authed(false), _sendBufferSize(4096)
 {
-    //Warhead::Crypto::GetRandomBytes(_authSeed);
     _headerBuffer.Resize(sizeof(DiscordClientPktHeader));
 }
-
-DiscordSocket::~DiscordSocket() = default;
 
 void DiscordSocket::Start()
 {
@@ -45,29 +46,34 @@ void DiscordSocket::Start()
 
     _queryProcessor.AddCallback(DiscordDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&DiscordSocket::CheckIpCallback, this, std::placeholders::_1)));
 
-    LOG_INFO("server", "> Connect from {}", GetRemoteIpAddress().to_string());
+    LOG_DEBUG("network", "> Connect from {}", GetRemoteIpAddress().to_string());
 }
 
 void DiscordSocket::CheckIpCallback(PreparedQueryResult result)
 {
     if (result)
     {
-        bool banned = false;
         do
         {
-            Field* fields = result->Fetch();
-            if (fields[0].Get<uint64>() != 0)
-                banned = true;
+            auto const& [isBanned, isPermanentlyBanned] = result->FetchTuple<uint64, uint64>();
+
+            if (isPermanentlyBanned)
+            {
+                SendAuthResponseError(DiscordAuthResponseCodes::BannedPermanentlyIP);
+                LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedPermanentlyIP' (IP {} permanently banned).", GetRemoteIpAddress().to_string());
+                DelayedCloseSocket();
+                return;
+            }
+
+            if (isBanned)
+            {
+                SendAuthResponseError(DiscordAuthResponseCodes::BannedIP);
+                LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedIP' (IP {} banned).", GetRemoteIpAddress().to_string());
+                DelayedCloseSocket();
+                return;
+            }
 
         } while (result->NextRow());
-
-        if (banned)
-        {
-            SendAuthResponseError(DiscordAuthResponseCodes::Banned);
-            LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response (IP {} banned).", GetRemoteIpAddress().to_string());
-            DelayedCloseSocket();
-            return;
-        }
     }
 
     AsyncRead();
@@ -120,9 +126,9 @@ bool DiscordSocket::Update()
 void DiscordSocket::OnClose()
 {
     {
-        std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
-        _worldSession = nullptr;
-        LOG_INFO("server", "> Disconnect from {}", GetRemoteIpAddress().to_string());
+        std::lock_guard<std::mutex> sessionGuard(_discordSessionLock);
+        _discordSession = nullptr;
+        LOG_DEBUG("server", "> Disconnect from {}", GetRemoteIpAddress().to_string());
     }
 }
 
@@ -213,18 +219,65 @@ bool DiscordSocket::ReadHeaderHandler()
 
 struct AuthSession
 {
-    uint32 ClientVersion = 0;
-    Warhead::Crypto::SHA1::Digest Digest = {};
     std::string Account;
+    std::string Key;
+    std::string CoreName;
+    std::string CoreVersion;    
+    uint32 ModuleVersion{ 0 };
+    int64 ServerID;
 };
 
 struct AccountInfo
 {
-    uint32 Id;
+    uint32 ID{ 0 };
+    Warhead::Crypto::SRP6::Salt Salt;
+    Warhead::Crypto::SRP6::Verifier Verifier;
+    std::string RealmName;
+    std::string CoreName;
+    uint32 ModuleVersion{ 0 };
+    std::string LastIP;
+    Seconds BanDate;
+    Seconds UnBanDate;
+    bool IsBanned{ false };
+    bool IsPermanentlyBanned{ false };
+
+    //             0         1           2               3                4             5               6
+    // SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`
+    //       7              8                             
+    // `ab`.`bandate, `ab`.`unbandate`
+    // FROM `account` a
+    // LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1
 
     explicit AccountInfo(Field* fields)
     {
-        Id = fields[0].Get<uint32>();
+        ID                  = fields[0].Get<uint32>();
+        Salt                = fields[1].Get<Binary, Warhead::Crypto::SRP6::SALT_LENGTH>();
+        Verifier            = fields[2].Get<Binary, Warhead::Crypto::SRP6::VERIFIER_LENGTH>();
+        RealmName           = fields[3].Get<std::string>();
+        LastIP              = fields[4].Get<std::string>();
+        CoreName            = fields[5].Get<std::string>();
+        ModuleVersion       = fields[6].Get<uint32>();
+        BanDate             = fields[7].Get<Seconds>(false);
+        UnBanDate           = fields[8].Get<Seconds>(false);
+
+        if (UnBanDate < GameTime::GetGameTime())
+            IsBanned = true;
+
+        if (BanDate == UnBanDate)
+            IsPermanentlyBanned = true;
+    }
+
+    inline bool CheckKey(std::string const& accountName, std::string const& key)
+    {
+        std::string safeAccount = accountName;
+        std::transform(safeAccount.begin(), safeAccount.end(), safeAccount.begin(), ::toupper);
+        Utf8ToUpperOnlyLatin(safeAccount);
+
+        std::string safeKey = key;
+        Utf8ToUpperOnlyLatin(safeKey);
+        std::transform(safeKey.begin(), safeKey.end(), safeKey.begin(), ::toupper);
+     
+        return Warhead::Crypto::SRP6::CheckLogin(safeAccount, safeKey, Salt, Verifier);
     }
 };
 
@@ -236,10 +289,25 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
     DiscordPacket packet(opcode, std::move(_packetBuffer));
     DiscordPacket* packetToQueue;
 
-    std::unique_lock<std::mutex> sessionGuard(_worldSessionLock, std::defer_lock);
+    std::unique_lock<std::mutex> sessionGuard(_discordSessionLock, std::defer_lock);
 
     switch (opcode)
     {
+        case CLIENT_SEND_PING:
+        {
+            LogOpcodeText(opcode);
+            try
+            {
+                return HandlePing(packet) ? ReadDataHandlerResult::Ok : ReadDataHandlerResult::Error;
+            }
+            catch (ByteBufferException const&)
+            {
+
+            }
+
+            LOG_ERROR("network", "DiscordSocket::ReadDataHandler(): client {} sent malformed CLIENT_SEND_PING", GetRemoteIpAddress().to_string());
+            return ReadDataHandlerResult::Error;
+        }
         case CLIENT_AUTH_SESSION:
         {
             LogOpcodeText(opcode);
@@ -247,7 +315,7 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
             {
                 // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
                 if (sessionGuard.try_lock())
-                    LOG_ERROR("network", "DiscordSocket::ProcessIncoming: received duplicate CMSG_AUTH_SESSION from {}", _worldSession->GetRemoteAddress());
+                    LOG_ERROR("network", "DiscordSocket::ProcessIncoming: received duplicate CMSG_AUTH_SESSION from {}", _discordSession->GetRemoteAddress());
 
                 return ReadDataHandlerResult::Error;
             }
@@ -274,7 +342,7 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
 
     LogOpcodeText(opcode);
 
-    if (!_worldSession)
+    if (!_discordSession)
     {
         LOG_ERROR("network.opcode", "ProcessIncoming: Client not authed opcode = {}", uint32(opcode));
         delete packetToQueue;
@@ -284,13 +352,14 @@ DiscordSocket::ReadDataHandlerResult DiscordSocket::ReadDataHandler()
     OpcodeHandler const* handler = opcodeTable[opcode];
     if (!handler)
     {
-        LOG_ERROR("network.opcode", "No defined handler for opcode {} sent by {}", GetOpcodeNameForLogging(static_cast<OpcodeClient>(packetToQueue->GetOpcode())), _worldSession->GetRemoteAddress());
+        LOG_ERROR("network.opcode", "No defined handler for opcode {} sent by {}", GetOpcodeNameForLogging(static_cast<OpcodeClient>(packetToQueue->GetOpcode())), _discordSession->GetRemoteAddress());
         delete packetToQueue;
         return ReadDataHandlerResult::Error;
     }
 
     // Copy the packet to the heap before enqueuing
-    _worldSession->QueuePacket(*packetToQueue);
+    _discordSession->QueuePacket(*packetToQueue);
+    delete packetToQueue;
 
     return ReadDataHandlerResult::Ok;
 }
@@ -320,10 +389,13 @@ void DiscordSocket::HandleAuthSession(DiscordPacket& recvPacket)
 
     // Read the content of the packet
     recvPacket >> authSession->Account;
-    //recvPacket >> authSession->ClientVersion;
-    //recvPacket >> authSession->Digest;
+    recvPacket >> authSession->Key;
+    recvPacket >> authSession->CoreName;
+    recvPacket >> authSession->CoreVersion;
+    recvPacket >> authSession->ModuleVersion;
+    recvPacket >> authSession->ServerID;
 
-    // Get the account information from the auth database
+    // Get the account information from the database
     auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME);
     stmt->SetArguments(authSession->Account);
 
@@ -347,6 +419,23 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
     // For hook purposes, we get Remoteaddress at this point.
     std::string address = GetRemoteIpAddress().to_string();
 
+    if (account.IsPermanentlyBanned)
+    {
+        SendAuthResponseError(DiscordAuthResponseCodes::BannedPermanentlyAccount);
+        LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedPermanentlyAccount' (Account {} permanently banned).", authSession->Account);
+        DelayedCloseSocket();
+        sBanMgr->AddAccount(authSession->Account, BanInfo(0s, account.BanDate));
+        return;
+    }
+    else if (account.IsBanned)
+    {
+        SendAuthResponseError(DiscordAuthResponseCodes::BannedAccount);
+        LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedAccount' (Account {} banned).", authSession->Account);
+        DelayedCloseSocket();
+        sBanMgr->AddAccount(authSession->Account, BanInfo(account.UnBanDate - GameTime::GetGameTime(), account.BanDate));
+        return;
+    }
+
     // First reject the connection if packet contains invalid data or realm state doesn't allow logging in
     if (sDiscord->IsClosed())
     {
@@ -356,25 +445,24 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
         return;
     }
 
+    if (!account.CheckKey(authSession->Account, authSession->Key))
+    {
+        SendAuthResponseError(DiscordAuthResponseCodes::IncorrectKey);
+        LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (incorrect key).");
+        DelayedCloseSocket();
+        return;
+    }
+
     if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(address))
         _ipCountry = location->CountryCode;
 
-    /*if (account.IsBanned)
-    {
-        SendAuthResponseError(AUTH_BANNED);
-        LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (Account banned).");
-        sScriptMgr->OnFailedAccountLogin(account.Id);
-        DelayedCloseSocket();
-        return;
-    }*/
-
-    LOG_DEBUG("network", "DiscordSocket::HandleAuthSession: Client '{}' authenticated successfully from {}.", authSession->Account, address);
+    LOG_INFO("network", "DiscordSocket::HandleAuthSession: Client '{}' authenticated successfully from {}.", authSession->Account, address);
 
     _authed = true;
 
-    _worldSession = new DiscordSession(account.Id, std::move(authSession->Account), shared_from_this());
+    _discordSession = new DiscordSession(account.ID, std::move(authSession->Account), shared_from_this());
 
-    sDiscord->AddSession(_worldSession);
+    sDiscord->AddSession(_discordSession);
 
     AsyncRead();
 }
@@ -387,67 +475,68 @@ void DiscordSocket::SendAuthResponseError(DiscordAuthResponseCodes code)
     SendPacketAndLogOpcode(packet);
 }
 
-//bool DiscordSocket::HandlePing(DiscordPacket& recvPacket)
-//{
-//    using namespace std::chrono;
-//
-//    uint32 ping;
-//    uint32 latency;
-//
-//    // Get the ping packet content
-//    recvPacket >> ping;
-//    recvPacket >> latency;
-//
-//    if (_LastPingTime == TimePoint())
-//    {
-//        _LastPingTime = steady_clock::now();
-//    }
-//    else
-//    {
-//        TimePoint now = steady_clock::now();
-//
-//        steady_clock::duration diff = now - _LastPingTime;
-//
-//        _LastPingTime = now;
-//
-//        if (diff < 27s)
-//        {
-//            ++_OverSpeedPings;
-//
-//            uint32 maxAllowed = CONF_GET_INT("MaxOverspeedPings");
-//
-//            if (maxAllowed && _OverSpeedPings > maxAllowed)
-//            {
-//                std::unique_lock<std::mutex> sessionGuard(_worldSessionLock);
-//
-//                if (_worldSession && AccountMgr::IsPlayerAccount(_worldSession->GetSecurity()))
-//                {
-//                    LOG_ERROR("network", "DiscordSocket::HandlePing: {} kicked for over-speed pings (address: {})",
-//                        _worldSession->GetPlayerInfo(), GetRemoteIpAddress().to_string());
-//
-//                    return false;
-//                }
-//            }
-//        }
-//        else
-//            _OverSpeedPings = 0;
-//    }
-//
-//    {
-//        std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
-//
-//        if (_worldSession)
-//            _worldSession->SetLatency(latency);
-//        else
-//        {
-//            LOG_ERROR("network", "DiscordSocket::HandlePing: peer sent CMSG_PING, but is not authenticated or got recently kicked, address = {}", GetRemoteIpAddress().to_string());
-//            return false;
-//        }
-//    }
-//
-//    DiscordPacket packet(SMSG_PONG, 4);
-//    packet << ping;
-//    SendPacketAndLogOpcode(packet);
-//
-//    return true;
-//}
+bool DiscordSocket::HandlePing(DiscordPacket& recvPacket)
+{
+    using namespace std::chrono;
+
+    int64 timePacket;
+    int64 latency;
+
+    // Get the ping packet content
+    recvPacket >> timePacket;
+    recvPacket >> latency;
+
+    if (_LastPingTime == TimePoint())
+    {
+        _LastPingTime = steady_clock::now();
+    }
+    else
+    {
+        TimePoint now = steady_clock::now();
+
+        steady_clock::duration diff = now - _LastPingTime;
+
+        _LastPingTime = now;
+
+        if (diff < 10s)
+        {
+            ++_OverSpeedPings;
+
+            //uint32 maxAllowed = CONF_GET_INT("MaxOverspeedPings");
+            uint32 maxAllowed = 5;
+
+            if (maxAllowed && _OverSpeedPings > maxAllowed)
+            {
+                std::unique_lock<std::mutex> sessionGuard(_discordSessionLock);
+
+                if (_discordSession)
+                {
+                    LOG_ERROR("network", "DiscordSocket::HandlePing: {} kicked for over-speed pings (address: {})",
+                        _discordSession->GetAccountId(), GetRemoteIpAddress().to_string());
+
+                    return false;
+                }
+            }
+        }
+        else
+            _OverSpeedPings = 0;
+    }
+
+    {
+        std::lock_guard<std::mutex> sessionGuard(_discordSessionLock);
+
+        if (_discordSession)
+            _discordSession->SetLatency(latency);
+        else
+        {
+            LOG_ERROR("network", "DiscordSocket::HandlePing: peer sent CMSG_PING, but is not authenticated or got recently kicked, address = {}", GetRemoteIpAddress().to_string());
+            return false;
+        }
+    }
+
+    DiscordPacket packet(SERVER_SEND_PONG, 1);
+    packet << timePacket;
+    SendPacketAndLogOpcode(packet);
+
+    return true;
+}

@@ -15,10 +15,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/** \file
-    \ingroup world
-*/
-
 #include "Discord.h"
 #include "DiscordBot.h"
 #include "DiscordSession.h"
@@ -30,6 +26,7 @@
 #include "DatabaseEnv.h"
 #include "DiscordSharedDefines.h"
 #include "Log.h"
+#include "AccountMgr.h"
 #include <boost/asio/ip/address.hpp>
 
 std::atomic<bool> Discord::m_stopEvent = false;
@@ -152,6 +149,8 @@ void Discord::SetInitialDiscordSettings()
         context.Repeat();
     });
 
+    sAccountMgr->Initialize();
+
     // Start discord bot
     sDiscordBot->Start();
 
@@ -175,6 +174,8 @@ void Discord::Update(uint32 diff)
 
     /// <li> Handle session updates when the timer has passed
     UpdateSessions();
+
+    sAccountMgr->Update();
 
     _scheduler.Update(diff);
 }

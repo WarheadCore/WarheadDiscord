@@ -22,6 +22,7 @@
 #include "DatabaseEnvFwd.h"
 #include "Timer.h"
 #include "TaskScheduler.h"
+#include "DiscordSharedDefines.h"
 #include <atomic>
 #include <unordered_map>
 
@@ -37,7 +38,7 @@ enum ShutdownExitCode
 };
 
 /// The Discord
-class WH_DISCORD_API Discord
+class WH_SERVER_API Discord
 {
 public:
     Discord();

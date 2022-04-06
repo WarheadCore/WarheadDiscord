@@ -69,7 +69,7 @@ DiscordConfig* DiscordConfig::instance()
 
 // Add option
 template<typename T>
-WH_DISCORD_API void DiscordConfig::AddOption(std::string_view optionName, Optional<T> def /*= std::nullopt*/)
+WH_SERVER_API void DiscordConfig::AddOption(std::string_view optionName, Optional<T> def /*= std::nullopt*/)
 {
     // copy from string_view
     std::string option{ optionName };
@@ -95,7 +95,7 @@ void DiscordConfig::AddOption(std::initializer_list<std::string> const& optionLi
 
 // Get option
 template<typename T>
-WH_DISCORD_API T DiscordConfig::GetOption(std::string_view optionName, Optional<T> def /*= std::nullopt*/)
+WH_SERVER_API T DiscordConfig::GetOption(std::string_view optionName, Optional<T> def /*= std::nullopt*/)
 {
     // copy from string_view
     std::string option{ optionName };
@@ -135,7 +135,7 @@ WH_DISCORD_API T DiscordConfig::GetOption(std::string_view optionName, Optional<
 
 // Set option
 template<typename T>
-WH_DISCORD_API void DiscordConfig::SetOption(std::string_view optionName, T value)
+WH_SERVER_API void DiscordConfig::SetOption(std::string_view optionName, T value)
 {
     // copy from string_view
     std::string option{ optionName };
@@ -160,8 +160,8 @@ WH_DISCORD_API void DiscordConfig::SetOption(std::string_view optionName, T valu
 }
 
 #define TEMPLATE_GAME_CONFIG_OPTION(__typename) \
-    template WH_DISCORD_API __typename DiscordConfig::GetOption(std::string_view optionName, Optional<__typename> def /*= std::nullopt*/); \
-    template WH_DISCORD_API void DiscordConfig::SetOption(std::string_view optionName, __typename value);
+    template WH_SERVER_API __typename DiscordConfig::GetOption(std::string_view optionName, Optional<__typename> def /*= std::nullopt*/); \
+    template WH_SERVER_API void DiscordConfig::SetOption(std::string_view optionName, __typename value);
 
 TEMPLATE_GAME_CONFIG_OPTION(bool)
 TEMPLATE_GAME_CONFIG_OPTION(uint8)

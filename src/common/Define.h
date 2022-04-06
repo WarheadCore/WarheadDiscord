@@ -23,6 +23,8 @@
 #include <climits>
 #include <cstddef>
 
+constexpr auto WARHEAD_DISCORD_VERSION = 100000;
+
 #if WARHEAD_COMPILER == WARHEAD_COMPILER_GNU
 #  if !defined(__STDC_FORMAT_MACROS)
 #    define __STDC_FORMAT_MACROS
@@ -90,10 +92,10 @@
 #  define WH_SHARED_API WH_API_IMPORT
 #endif
 
-#ifdef WARHEAD_API_EXPORT_DISCORD
-#  define WH_DISCORD_API WH_API_EXPORT
+#ifdef WARHEAD_API_EXPORT_SERVER
+#  define WH_SERVER_API WH_API_EXPORT
 #else
-#  define WH_DISCORD_API WH_API_IMPORT
+#  define WH_SERVER_API WH_API_IMPORT
 #endif
 
 typedef std::int64_t int64;

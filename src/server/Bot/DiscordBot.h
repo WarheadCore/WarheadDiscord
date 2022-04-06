@@ -42,7 +42,7 @@ enum class DiscordMessageColor : uint32
     White = 0xffffff
 };
 
-class WH_DISCORD_API DiscordBot
+class WH_SERVER_API DiscordBot
 {
     DiscordBot() = default;
     ~DiscordBot() = default;
@@ -58,14 +58,16 @@ public:
     void SendDefaultMessage(int64 channelID, std::string_view message);
     void SendEmbedMessage(int64 channelID, dpp::embed const* embed);
 
-    void Start();    
+    void Start();
 
 private:
     void ConfigureLogs();
+    void ConfigureCommands();
 
     bool _isEnable{ false };
+    int64 _warheadServerID{ 0 };
 
-    std::unique_ptr<dpp::cluster> _bot = {};
+    std::unique_ptr<dpp::cluster> _bot;
 };
 
 #define sDiscordBot DiscordBot::instance()

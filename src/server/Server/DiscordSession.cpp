@@ -25,12 +25,14 @@
 #include "DiscordSocket.h"
 #include "Timer.h"
 
+constexpr auto MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;
+
 /// DiscordSession constructor
 DiscordSession::DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock) :
     _accountId(id),
     _accountName(std::move(name)),
     _socket(sock),
-    _latency(0)
+    _latency(0us)
 {
     if (_socket)
         _address = _socket->GetRemoteIpAddress().to_string();
@@ -123,17 +125,11 @@ bool DiscordSession::Update()
 
         processedPackets++;
 
-//#define MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE 150
-//        processedPackets++;
-//
-//        // process only a max amout of packets in 1 Update() call.
-//        // Any leftover will be processed in next update
-//        if (processedPackets > MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE)
-//            break;
+        // process only a max amout of packets in 1 Update() call.
+        // Any leftover will be processed in next update
+        if (processedPackets > MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE)
+            break;
     }
-
-    if (processedPackets)
-        LOG_DEBUG("server", "{}: {} packages processed", __FUNCTION__, processedPackets);
 
     ProcessQueryCallbacks();
 

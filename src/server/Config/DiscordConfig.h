@@ -23,7 +23,7 @@
 #include <string_view>
 #include <unordered_map>
 
-class WH_DISCORD_API DiscordConfig
+class WH_SERVER_API DiscordConfig
 {
     DiscordConfig(DiscordConfig const&) = delete;
     DiscordConfig(DiscordConfig&&) = delete;
