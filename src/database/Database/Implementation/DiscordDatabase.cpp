@@ -23,8 +23,22 @@ void DiscordDatabaseConnection::DoPrepareStatements()
     if (!m_reconnecting)
         m_stmts.resize(MAX_DISCORD_DATABASE_STATEMENTS);
 
-    PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `ID` FROM `account` WHERE `Name` = ? LIMIT 1", CONNECTION_ASYNC);
-    PrepareStatement(DISCORD_SEL_IP_INFO, "SELECT unbandate > UNIX_TIMESTAMP() OR unbandate = bandate AS banned, NULL as country FROM ip_banned WHERE ip = ?", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`, "
+        "`ab`.`bandate, `ab`.`unbandate` "
+        "FROM `account` a LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1 ", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO account (`Name`, `RealmName`, `Salt`, `Verifier`, `JoinDate`) VALUES (?, ?, ?, ?, NOW())", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_SEL_IP_INFO, "SELECT unbandate > UNIX_TIMESTAMP() OR unbandate = bandate, unbandate = bandate FROM ip_banned WHERE ip = ?", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_SEL_ACCOUNT_ID_BY_USERNAME, "SELECT `ID` FROM `account` WHERE `Name` = ?", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_SEL_ACCOUNTS, "SELECT `ID`, `Name`, `RealmName` FROM account", CONNECTION_SYNCH);
+    PrepareStatement(DISCORD_UPD_LOGON, "UPDATE `account` SET `Salt` = ?, `Verifier` = ? WHERE `ID` = ?", CONNECTION_ASYNC);
+
+    // Ban manager
+    PrepareStatement(DISCORD_DEL_BAN_ACCOUNT, "DELETE FROM `account_banned` WHERE `id` = ?", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_DEL_BAN_IP, "DELETE FROM `ip_banned` WHERE `ip` = ?", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_INS_ACCOUNT_BAN, "INSERT INTO `account_banned` (`id`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`) VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP() + ?, ?, ?, 1)", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_INS_IP_BAN, "INSERT INTO `ip_banned` (`ip`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`) VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP() + ?, ?, ?, 1)", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_UPD_ACCOUNT_BAN_EXPIRED, "UPDATE `account_banned` SET `active` = 0 WHERE `unbandate` <= UNIX_TIMESTAMP() AND `unbandate` <> `bandate`", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_UPD_ACCOUNT_BAN_EXPIRED, "UPDATE `ip_banned` SET `active` = 0 WHERE `unbandate` <= UNIX_TIMESTAMP() AND `unbandate` <> `bandate`", CONNECTION_ASYNC);
 }
 
 DiscordDatabaseConnection::DiscordDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

@@ -17,6 +17,7 @@
 
 #include "Util.h"
 #include "Errors.h"
+#include "Containers.h"
 #include <string>
 #include <algorithm>
 #include <utf8.h>
@@ -82,6 +83,19 @@ void Warhead::Impl::HexStrToByteArray(std::string_view str, uint8* out, size_t o
     }
 }
 
+bool Utf8ToUpperOnlyLatin(std::string& utf8String)
+{
+    std::wstring wstr;
+    if (!Utf8toWStr(utf8String, wstr))
+    {
+        return false;
+    }
+
+    std::transform(wstr.begin(), wstr.end(), wstr.begin(), wcharToUpperOnlyLatin);
+
+    return WStrToUtf8(wstr, utf8String);
+}
+
 bool Utf8toWStr(std::string_view utf8str, std::wstring& wstr)
 {
     wstr.clear();
@@ -96,4 +110,100 @@ bool Utf8toWStr(std::string_view utf8str, std::wstring& wstr)
     }
 
     return true;
+}
+
+bool Utf8toWStr(char const* utf8str, size_t csize, wchar_t* wstr, size_t& wsize)
+{
+    try
+    {
+        Warhead::CheckedBufferOutputIterator<wchar_t> out(wstr, wsize);
+        out = utf8::utf8to16(utf8str, utf8str + csize, out);
+        wsize -= out.remaining(); // remaining unused space
+        wstr[wsize] = L'\0';
+    }
+    catch (std::exception const&)
+    {
+        // Replace the converted string with an error message if there is enough space
+        // Otherwise just return an empty string
+        const wchar_t* errorMessage = L"An error occurred converting string from UTF-8 to WStr";
+        std::size_t errorMessageLength = std::char_traits<wchar_t>::length(errorMessage);
+        if (wsize >= errorMessageLength)
+        {
+            std::wcscpy(wstr, errorMessage);
+            wsize = std::char_traits<wchar_t>::length(wstr);
+        }
+        else if (wsize > 0)
+        {
+            wstr[0] = L'\0';
+            wsize = 0;
+        }
+        else
+        {
+            wsize = 0;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+bool WStrToUtf8(std::wstring_view wstr, std::string& utf8str)
+{
+    try
+    {
+        std::string utf8str2;
+        utf8str2.resize(wstr.size() * 4);                     // allocate for most long case
+
+        if (!wstr.empty())
+        {
+            char* oend = utf8::utf16to8(wstr.begin(), wstr.end(), &utf8str2[0]);
+            utf8str2.resize(oend - (&utf8str2[0]));                // remove unused tail
+        }
+
+        utf8str = utf8str2;
+    }
+    catch (std::exception const&)
+    {
+        utf8str.clear();
+        return false;
+    }
+
+    return true;
+}
+
+size_t utf8length(std::string& utf8str)
+{
+    try
+    {
+        return utf8::distance(utf8str.c_str(), utf8str.c_str() + utf8str.size());
+    }
+    catch (std::exception const&)
+    {
+        utf8str.clear();
+        return 0;
+    }
+}
+
+void utf8truncate(std::string& utf8str, size_t len)
+{
+    try
+    {
+        size_t wlen = utf8::distance(utf8str.c_str(), utf8str.c_str() + utf8str.size());
+        if (wlen <= len)
+        {
+            return;
+        }
+
+        std::wstring wstr;
+        wstr.resize(wlen);
+        utf8::utf8to16(utf8str.c_str(), utf8str.c_str() + utf8str.size(), &wstr[0]);
+        wstr.resize(len);
+        char* oend = utf8::utf16to8(wstr.c_str(), wstr.c_str() + wstr.size(), &utf8str[0]);
+        utf8str.resize(oend - (&utf8str[0]));               // remove unused tail
+    }
+    catch (std::exception const&)
+    {
+        utf8str.clear();
+    }
 }
