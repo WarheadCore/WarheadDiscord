@@ -20,17 +20,17 @@
 
 #include "Define.h"
 
- /// List of Opcodes
+// EnumUtils: DESCRIBE THIS
 enum DiscordCode : uint16
 {
-    // Client
     CLIENT_SEND_HELLO = 1,
     CLIENT_AUTH_SESSION,
     CLIENT_SEND_MESSAGE,
     CLIENT_SEND_MESSAGE_EMBED,
+    CLIENT_SEND_PING,
 
-    // Server
     SERVER_SEND_AUTH_RESPONSE,
+    SERVER_SEND_PONG,
 
     NUM_MSG_TYPES
 };
@@ -41,14 +41,29 @@ enum OpcodeMisc : uint16
     NULL_OPCODE = 0x0000
 };
 
+// EnumUtils: DESCRIBE THIS
 enum class DiscordAuthResponseCodes : uint8
 {
     Ok,
     Failed,
+    IncorrectKey,
     UnknownAccount,
-    Banned,
-    IncorrectPassword,
+    BannedAccount,
+    BannedIP,
+    BannedPermanentlyAccount,
+    BannedPermanentlyIP,    
     ServerOffline
+};
+
+// EnumUtils: DESCRIBE THIS
+enum class AccountResponceResult : uint8
+{
+    Ok,
+    LongName,
+    LongKey,
+    NameAlreadyExist,
+    NameNotExist,
+    DBError
 };
 
 #endif // __DISCORD_SHARED_DEFINES_H__
