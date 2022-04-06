@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         //sDiscord->SendServerShutdown();
     });
 
-    LOG_INFO("server", "{} (discordserver-daemon) ready...", GitRevision::GetFullVersion());
+    LOG_INFO("server", "{} (DiscordServer-daemon) ready...", GitRevision::GetFullVersion());
 
     DiscordUpdateLoop();
 
