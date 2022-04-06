@@ -49,20 +49,15 @@
 #                     Logs directory must exists, or log file creation will be disabled.
 #        Example:     "/home/.../logs"
 #        Default:     "" - (Log files will be stored in the current path)
+#
 
 LogsDir = "logs"
 
 #
-#    MaxPingTime
-#        Description: Time (in minutes) between database pings.
-#        Default:     30
-
-MaxPingTime = 30
-
-#
-#    RealmServerPort
-#        Description: TCP port to reach the auth server.
+#    ServerPort
+#        Description: TCP port to reach the discord server.
 #        Default:     3724
+#
 
 ServerPort = 3724
 
@@ -71,6 +66,7 @@ ServerPort = 3724
 #    BindIP
 #        Description: Bind auth server to IP/hostname
 #        Default:     "0.0.0.0" - (Bind to all IPs on the system)
+#
 
 BindIP = "0.0.0.0"
 
@@ -79,11 +75,11 @@ BindIP = "0.0.0.0"
 #        Description: Number of threads to be used for the global thread pool
 #                     The thread pool is currently used for:
 #                      - Signal handling
-#                      - Remote access
 #                      - Database keep-alive ping
 #                      - Core freeze check
 #                      - Discord socket networking
 #        Default:     2
+#
 
 ThreadPool = 2
 
@@ -116,6 +112,7 @@ MySQLExecutable = ""
 #        Example:     "C:/Warhead/IP2LOCATION-LITE-DB1.CSV"
 #                     "/home/warhead/IP2LOCATION-LITE-DB1.CSV"
 #        Default:     ""  - (Disabled)
+#
 
 IPLocationFile = ""
 
@@ -126,6 +123,7 @@ IPLocationFile = ""
 #                     performance. Diff > 600 bad performance, may be caused by high CPU usage.
 #        Default:     300000 - (Enabled, 5 minutes)
 #                     0      - (Disabled)
+#
 
 RecordUpdateTimeDiffInterval = 30000
 
@@ -133,6 +131,7 @@ RecordUpdateTimeDiffInterval = 30000
 #     MinRecordUpdateTimeDiff
 #        Description: Only record update time diff which is greater than this value.
 #        Default:     1000
+#
 
 MinRecordUpdateTimeDiff = 1000
 ###################################################################################################
@@ -143,6 +142,7 @@ MinRecordUpdateTimeDiff = 1000
 #    Network.Threads
 #        Description: Number of threads for network.
 #         Default:    1 - (Recommended 1 thread per 1000 connections)
+#
 
 Network.Threads = 1
 
@@ -151,6 +151,7 @@ Network.Threads = 1
 #        Description: Amount of memory (in bytes) used for the output kernel buffer (see SO_SNDBUF
 #                     socket option, TCP manual).
 #        Default:     -1 - (Use system default setting)
+#
 
 Network.OutKBuff = -1
 
@@ -159,6 +160,7 @@ Network.OutKBuff = -1
 #        Description: Amount of memory (in bytes) reserved in the user space per connection for
 #                     output buffering.
 #         Default:    65536
+#
 
 Network.OutUBuff = 65536
 
@@ -167,10 +169,9 @@ Network.OutUBuff = 65536
 #        Description: TCP Nagle algorithm setting.
 #         Default:    0 - (Enabled, Less traffic, More latency)
 #                     1 - (Disabled, More traffic, Less latency, TCP_NO_DELAY)
+#
 
 Network.TcpNodelay = 1
-
-#
 ###################################################################################################
 
 ###################################################################################################
@@ -209,6 +210,7 @@ Database.Reconnect.Attempts = 20
 #        Description: The amount of worker threads spawned to handle asynchronous (delayed) MySQL
 #                     statements. Each worker thread is mirrored with its own connection to the
 #        Default:     1
+#
 
 DiscordDatabase.WorkerThreads = 1
 
@@ -232,6 +234,7 @@ DiscordDatabase.SynchThreads = 1
 #
 #        Default:     0  - (All Disabled)
 #                     1  - (All Enabled)
+#
 
 Updates.EnableDatabases = 1
 
@@ -240,6 +243,7 @@ Updates.EnableDatabases = 1
 #        Description: Auto populate empty databases.
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
+#
 
 Updates.AutoSetup = 1
 
@@ -249,6 +253,7 @@ Updates.AutoSetup = 1
 #                     to detect changes on sql updates and reapply it.
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
+#
 
 Updates.Redundancy = 1
 
@@ -257,6 +262,7 @@ Updates.Redundancy = 1
 #        Description: Check hashes of archived updates (slows down startup).
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
+#
 
 Updates.ArchivedRedundancy = 0
 
@@ -266,6 +272,7 @@ Updates.ArchivedRedundancy = 0
 #                     Useful if you want to mark a file as applied but you don't know its hash.
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
+#
 
 Updates.AllowRehash = 1
 
@@ -278,6 +285,7 @@ Updates.AllowRehash = 1
 #        Default:     3 - (Enabled)
 #                     0 - (Disabled)
 #                    -1 - (Enabled - unlimited)
+#
 
 Updates.CleanDeadRefMaxCount = 3
 ###################################################################################################
@@ -407,10 +415,9 @@ Updates.CleanDeadRefMaxCount = 3
 #                       timestamp: A timestamp is appended to the log file name.
 #                                  For example, if the log file is named "access.log", and it fulfils the criteria for rotation, the file is renamed to "access.log.20050802110300".
 #
-#
 
 LogChannel.Console = "1","local","[%H:%M:%S] %t","lightRed lightRed red brown magenta cyan lightMagenta green"
-LogChannel.Auth = "2","local","%Y-%m-%d %H:%M:%S %t","Auth.log","false","never","false","30 days","number"
+LogChannel.Discord = "2","local","%Y-%m-%d %H:%M:%S %t","Discord.log","false","never","false","30 days","number"
 
 #
 #  Logger config values: Given a logger "name"
@@ -433,7 +440,7 @@ LogChannel.Auth = "2","local","%Y-%m-%d %H:%M:%S %t","Auth.log","false","never",
 #                     (Using spaces as separator).
 #
 
-Logger.root = 6,Console Auth
+Logger.root = 6,Console Discord
 ###################################################################################################
 
 ###################################################################################################
