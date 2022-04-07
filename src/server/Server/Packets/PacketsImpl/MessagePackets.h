@@ -19,6 +19,7 @@
 #define MessagePackets_h__
 
 #include "Packet.h"
+#include "DiscordSharedDefines.h"
 
 namespace DiscordPackets::Message
 {
@@ -44,7 +45,9 @@ namespace DiscordPackets::Message
         uint32 Color{ 0 };
         std::string Title;
         std::string Description;
+        std::size_t EmbedFieldsSize{ 0 };
         time_t Timestamp{ 0 };
+        DiscordEmbedFields EmbedFields;
     };
 }
 

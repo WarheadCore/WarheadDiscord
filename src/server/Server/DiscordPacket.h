@@ -19,9 +19,7 @@
 #define WARHEADCORE_WORLDPACKET_H
 
 #include "ByteBuffer.h"
-#include "Define.h"
-#include "Duration.h"
-#include "Opcodes.h"
+#include "DiscordSharedDefines.h"
 
 class DiscordPacket : public ByteBuffer
 {
@@ -29,23 +27,20 @@ public:
     // just container for later use
     DiscordPacket() : ByteBuffer(0) { }
 
-    explicit DiscordPacket(uint16 opcode, size_t res = 200) :
-        ByteBuffer(res), m_opcode(opcode) { }
+    explicit DiscordPacket(uint16 opcode, size_t res = 1) :
+        ByteBuffer(res), _opcode(opcode) { }
 
     DiscordPacket(DiscordPacket&& packet) noexcept :
-        ByteBuffer(std::move(packet)), m_opcode(packet.m_opcode) { }
-
-    DiscordPacket(DiscordPacket&& packet, TimePoint receivedTime) :
-        ByteBuffer(std::move(packet)), m_opcode(packet.m_opcode), m_receivedTime(receivedTime) { }
+        ByteBuffer(std::move(packet)), _opcode(packet._opcode) { }
 
     DiscordPacket(DiscordPacket const& right) :
-        ByteBuffer(right), m_opcode(right.m_opcode) { }
+        ByteBuffer(right), _opcode(right._opcode) { }
 
     DiscordPacket& operator=(DiscordPacket const& right)
     {
         if (this != &right)
         {
-            m_opcode = right.m_opcode;
+            _opcode = right._opcode;
             ByteBuffer::operator=(right);
         }
 
@@ -56,7 +51,7 @@ public:
     {
         if (this != &right)
         {
-            m_opcode = right.m_opcode;
+            _opcode = right._opcode;
             ByteBuffer::operator=(std::move(right));
         }
 
@@ -64,23 +59,19 @@ public:
     }
 
     DiscordPacket(uint16 opcode, MessageBuffer&& buffer) :
-        ByteBuffer(std::move(buffer)), m_opcode(opcode) { }
+        ByteBuffer(std::move(buffer)), _opcode(opcode) { }
 
     void Initialize(uint16 opcode, size_t newres = 200)
     {
         clear();
         _storage.reserve(newres);
-        m_opcode = opcode;
+        _opcode = opcode;
     }
 
-    [[nodiscard]] uint16 GetOpcode() const { return m_opcode; }
-    void SetOpcode(uint16 opcode) { m_opcode = opcode; }
-
-    [[nodiscard]] TimePoint GetReceivedTime() const { return m_receivedTime; }
+    [[nodiscard]] uint16 GetOpcode() const { return _opcode; }
+    void SetOpcode(uint16 opcode) { _opcode = opcode; }
 
 protected:
-    uint16 m_opcode{ NULL_OPCODE };
-    TimePoint m_receivedTime; // only set for a specific set of opcodes, for performance reasons.
+    uint16 _opcode{ NULL_DISCORD_CODE };
 };
-
 #endif

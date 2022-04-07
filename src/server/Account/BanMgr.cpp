@@ -136,7 +136,7 @@ void BanMgr::AddAccount(std::string const& accountName, BanInfo const& banType)
     if (itr != _storeAccount.end())
         _storeAccount.erase(accountName);
 
-    _storeAccount.emplace(accountName, banType);
+    _storeAccount.emplace(accountName, std::make_unique<BanInfo>(banType));
 }
 
 void BanMgr::AddIp(std::string const& ip, BanInfo const& banType)
@@ -145,7 +145,7 @@ void BanMgr::AddIp(std::string const& ip, BanInfo const& banType)
     if (itr != _storeIp.end())
         _storeIp.erase(ip);
 
-    _storeIp.emplace(ip, banType);
+    _storeIp.emplace(ip, std::make_unique<BanInfo>(banType));
 }
 
 void BanMgr::DeleteAccount(std::string const& accountName)

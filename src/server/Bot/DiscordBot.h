@@ -28,20 +28,6 @@ namespace dpp
     struct embed;
 }
 
-enum class DiscordMessageColor : uint32
-{
-    Blue = 0x28a745,
-    Red = 0xdc3545,
-    Orange = 0xfd7e14,
-    Purple = 0x6f42c1,
-    Indigo = 0x6610f2,
-    Yellow = 0xffc107,
-    Teal = 0x20c997,
-    Cyan = 0x17a2b8,
-    Gray = 0xadb5bd,
-    White = 0xffffff
-};
-
 class WH_SERVER_API DiscordBot
 {
     DiscordBot() = default;

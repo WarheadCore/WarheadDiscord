@@ -19,7 +19,7 @@
 #define __DISCORD_PACKET_HEADER_H__
 
 #include "Define.h"
-#include "Opcodes.h"
+#include "DiscordSharedDefines.h"
 
 #pragma pack(push, 1)
 struct DiscordServerPktHeader
@@ -55,7 +55,7 @@ struct DiscordClientPktHeader
     uint16 cmd;
 
     bool IsValidSize() const { return size >= 2 && size < 10000; }
-    bool IsValidOpcode() const { return cmd < NUM_OPCODE_HANDLERS; }
+    bool IsValidOpcode() const { return cmd < NUM_DISCORD_CODE_HANDLERS; }
 };
 #pragma pack(pop)
 

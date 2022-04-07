@@ -66,20 +66,20 @@ OpcodeTable::OpcodeTable()
 
 OpcodeTable::~OpcodeTable()
 {
-    for (uint16 i = 0; i < NUM_OPCODE_HANDLERS; ++i)
+    for (uint16 i = 0; i < NUM_DISCORD_CODE_HANDLERS; ++i)
         delete _internalTableClient[i];
 }
 
 template<typename Handler, Handler HandlerFunction>
 void OpcodeTable::ValidateAndSetClientOpcode(OpcodeClient opcode, std::string_view name)
 {
-    if (uint32(opcode) == NULL_OPCODE)
+    if (uint32(opcode) == NULL_DISCORD_CODE)
     {
         LOG_ERROR("network", "Opcode {} does not have a value", name);
         return;
     }
 
-    if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
+    if (uint32(opcode) >= NUM_DISCORD_CODE_HANDLERS)
     {
         LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", uint32(opcode));
         return;
@@ -96,13 +96,13 @@ void OpcodeTable::ValidateAndSetClientOpcode(OpcodeClient opcode, std::string_vi
 
 void OpcodeTable::ValidateAndSetServerOpcode(OpcodeServer opcode, std::string_view name)
 {
-    if (uint32(opcode) == NULL_OPCODE)
+    if (uint32(opcode) == NULL_DISCORD_CODE)
     {
         LOG_ERROR("network", "Opcode {} does not have a value", name);
         return;
     }
 
-    if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
+    if (uint32(opcode) >= NUM_DISCORD_CODE_HANDLERS)
     {
         LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", uint32(opcode));
         return;
@@ -148,7 +148,7 @@ inline std::string GetOpcodeNameForLoggingImpl(T id)
 
     std::string name;
 
-    if (opcode < NUM_OPCODE_HANDLERS)
+    if (opcode < NUM_DISCORD_CODE_HANDLERS)
     {
         if (OpcodeHandler const* handler = opcodeTable[id])
             name = handler->Name;

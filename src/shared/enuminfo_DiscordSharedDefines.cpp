@@ -38,7 +38,7 @@ WH_API_EXPORT EnumText EnumUtils<DiscordCode>::ToString(DiscordCode value)
         case DiscordCode::CLIENT_SEND_PING: return { "CLIENT_SEND_PING", "CLIENT_SEND_PING", "" };
         case DiscordCode::SERVER_SEND_AUTH_RESPONSE: return { "SERVER_SEND_AUTH_RESPONSE", "SERVER_SEND_AUTH_RESPONSE", "" };
         case DiscordCode::SERVER_SEND_PONG: return { "SERVER_SEND_PONG", "SERVER_SEND_PONG", "" };
-        case DiscordCode::NUM_MSG_TYPES: return { "NUM_MSG_TYPES", "NUM_MSG_TYPES", "" };
+        case DiscordCode::MAX_DISCORD_CODE: return { "MAX_DISCORD_CODE", "MAX_DISCORD_CODE", "" };
         default: throw std::out_of_range("value");
     }
 }
@@ -58,7 +58,7 @@ WH_API_EXPORT DiscordCode EnumUtils<DiscordCode>::FromIndex(size_t index)
         case 4: return DiscordCode::CLIENT_SEND_PING;
         case 5: return DiscordCode::SERVER_SEND_AUTH_RESPONSE;
         case 6: return DiscordCode::SERVER_SEND_PONG;
-        case 7: return DiscordCode::NUM_MSG_TYPES;
+        case 7: return DiscordCode::MAX_DISCORD_CODE;
         default: throw std::out_of_range("index");
     }
 }
@@ -75,7 +75,7 @@ WH_API_EXPORT size_t EnumUtils<DiscordCode>::ToIndex(DiscordCode value)
         case DiscordCode::CLIENT_SEND_PING: return 4;
         case DiscordCode::SERVER_SEND_AUTH_RESPONSE: return 5;
         case DiscordCode::SERVER_SEND_PONG: return 6;
-        case DiscordCode::NUM_MSG_TYPES: return 7;
+        case DiscordCode::MAX_DISCORD_CODE: return 7;
         default: throw std::out_of_range("value");
     }
 }

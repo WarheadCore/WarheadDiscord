@@ -230,21 +230,21 @@ struct AuthSession
 struct AccountInfo
 {
     uint32 ID{ 0 };
-    Warhead::Crypto::SRP6::Salt Salt;
-    Warhead::Crypto::SRP6::Verifier Verifier;
+    Warhead::Crypto::SRP6::Salt Salt{};
+    Warhead::Crypto::SRP6::Verifier Verifier{};
     std::string RealmName;
     std::string CoreName;
     uint32 ModuleVersion{ 0 };
     std::string LastIP;
-    Seconds BanDate;
-    Seconds UnBanDate;
+    Seconds BanDate{ 0s };
+    Seconds UnBanDate{ 0s };
     bool IsBanned{ false };
     bool IsPermanentlyBanned{ false };
 
     //             0         1           2               3                4             5               6
     // SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`
     //       7              8                             
-    // `ab`.`bandate, `ab`.`unbandate`
+    // `ab`.`bandate`, `ab`.`unbandate`
     // FROM `account` a
     // LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1
 
@@ -257,13 +257,17 @@ struct AccountInfo
         LastIP              = fields[4].Get<std::string>();
         CoreName            = fields[5].Get<std::string>();
         ModuleVersion       = fields[6].Get<uint32>();
-        BanDate             = fields[7].Get<Seconds>(false);
-        UnBanDate           = fields[8].Get<Seconds>(false);
 
-        if (UnBanDate < GameTime::GetGameTime())
+        if (!fields[7].IsNull())
+            BanDate = fields[7].Get<Seconds>(false);
+
+        if (!fields[8].IsNull())
+            UnBanDate = fields[8].Get<Seconds>(false);
+
+        if (UnBanDate > 0s && UnBanDate < GameTime::GetGameTime())
             IsBanned = true;
 
-        if (BanDate == UnBanDate)
+        if (BanDate > 0s && BanDate == UnBanDate)
             IsPermanentlyBanned = true;
     }
 

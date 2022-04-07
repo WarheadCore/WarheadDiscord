@@ -23,8 +23,6 @@
 #include <climits>
 #include <cstddef>
 
-constexpr auto WARHEAD_DISCORD_VERSION = 100000;
-
 #if WARHEAD_COMPILER == WARHEAD_COMPILER_GNU
 #  if !defined(__STDC_FORMAT_MACROS)
 #    define __STDC_FORMAT_MACROS

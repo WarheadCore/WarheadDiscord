@@ -76,7 +76,7 @@ private:
 
     void ValidateAndSetServerOpcode(OpcodeServer opcode, std::string_view name);
 
-    ClientOpcodeHandler* _internalTableClient[NUM_OPCODE_HANDLERS];
+    ClientOpcodeHandler* _internalTableClient[NUM_DISCORD_CODE_HANDLERS];
 };
 
 extern OpcodeTable opcodeTable;

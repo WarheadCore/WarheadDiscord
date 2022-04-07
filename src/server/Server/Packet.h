@@ -19,6 +19,7 @@
 #define PacketBaseDiscord_h__
 
 #include "DiscordPacket.h"
+#include "Opcodes.h"
 
 namespace DiscordPackets
 {

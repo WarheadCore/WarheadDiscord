@@ -27,6 +27,7 @@
 #include "DiscordSharedDefines.h"
 #include "Log.h"
 #include "AccountMgr.h"
+#include "Opcodes.h"
 #include <boost/asio/ip/address.hpp>
 
 std::atomic<bool> Discord::m_stopEvent = false;

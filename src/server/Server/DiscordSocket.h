@@ -23,6 +23,7 @@
 #include "Socket.h"
 #include "DiscordPacket.h"
 #include "DiscordSession.h"
+#include "Opcodes.h"
 #include <boost/asio/ip/tcp.hpp>
 
 using boost::asio::ip::tcp;

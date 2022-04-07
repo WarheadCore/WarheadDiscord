@@ -24,8 +24,8 @@ void DiscordDatabaseConnection::DoPrepareStatements()
         m_stmts.resize(MAX_DISCORD_DATABASE_STATEMENTS);
 
     PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`, "
-        "`ab`.`bandate, `ab`.`unbandate` "
-        "FROM `account` a LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1 ", CONNECTION_ASYNC);
+        "`ab`.`bandate`, `ab`.`unbandate` "
+        "FROM `account` a LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO account (`Name`, `RealmName`, `Salt`, `Verifier`, `JoinDate`) VALUES (?, ?, ?, ?, NOW())", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_SEL_IP_INFO, "SELECT unbandate > UNIX_TIMESTAMP() OR unbandate = bandate, unbandate = bandate FROM ip_banned WHERE ip = ?", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_SEL_ACCOUNT_ID_BY_USERNAME, "SELECT `ID` FROM `account` WHERE `Name` = ?", CONNECTION_ASYNC);

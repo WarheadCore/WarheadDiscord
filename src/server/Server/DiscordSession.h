@@ -23,9 +23,7 @@
 #include "DatabaseEnvFwd.h"
 #include "DiscordSharedDefines.h"
 #include "PacketQueue.h"
-#include "Packet.h"
-#include <map>
-#include <utility>
+#include "Duration.h"
 
 class DiscordPacket;
 class DiscordSocket;

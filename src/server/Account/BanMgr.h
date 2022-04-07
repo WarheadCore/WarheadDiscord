@@ -21,6 +21,7 @@
 #include "Define.h"
 #include "Duration.h"
 #include <unordered_map>
+#include <memory>
 
 /// Ban function return codes
 enum class BanResponceCode : uint8

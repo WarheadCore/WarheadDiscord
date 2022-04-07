@@ -30,5 +30,22 @@ void DiscordPackets::Message::SendDiscordEmbedMessage::Read()
     _worldPacket >> Color;
     _worldPacket >> Title;
     _worldPacket >> Description;
+    _worldPacket >> EmbedFieldsSize;
+
+    for (std::size_t i = 0; i < EmbedFieldsSize; i++)
+    {
+        std::string name;
+        std::string value;
+        bool isInline;
+
+        _worldPacket >> name;
+        _worldPacket >> value;
+        _worldPacket >> isInline;
+
+        auto embedField = EmbedField(name, value, isInline);
+
+        EmbedFields.emplace_back(embedField);
+    }
+
     _worldPacket >> Timestamp;
 }

@@ -33,6 +33,18 @@ void DiscordSession::HandleSendDiscordEmbedMessageOpcode(DiscordPackets::Message
     embed.set_color(packet.Color);
     embed.set_title(packet.Title);
     embed.set_description(packet.Description);
+
+    for (auto const& embedField : packet.EmbedFields)
+    {
+        if (!embedField.IsCorrectName())
+            LOG_ERROR("server", "> Incorrect size for embed name. Size {}. Context '{}'", embedField.Name.size(), embedField.Name);
+
+        if (!embedField.IsCorrectValue())
+            LOG_ERROR("server", "> Incorrect size for embed value. Size {}. Context '{}'", embedField.Value.size(), embedField.Value);
+
+        embed.add_field(embedField.Name, embedField.Value, embedField.IsInline);
+    }
+
     embed.set_timestamp(packet.Timestamp);
 
     sDiscordBot->SendEmbedMessage(packet.ChannelID, &embed);

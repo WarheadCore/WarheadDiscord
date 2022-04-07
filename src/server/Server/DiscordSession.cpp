@@ -52,7 +52,7 @@ DiscordSession::~DiscordSession()
 /// Send a packet to the client
 void DiscordSession::SendPacket(DiscordPacket const* packet)
 {
-    if (packet->GetOpcode() == NULL_OPCODE)
+    if (packet->GetOpcode() == NULL_DISCORD_CODE)
     {
         LOG_ERROR("network.opcode", "Send NULL_OPCODE");
         return;
