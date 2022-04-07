@@ -20,6 +20,7 @@
 
 #include "Define.h"
 #include "Optional.h"
+#include <string>
 #include <string_view>
 #include <unordered_map>
 

@@ -62,7 +62,7 @@ public:
     DiscordUpdateTime() : UpdateTime(), _recordUpdateTimeInverval(0), _recordUpdateTimeMin(0), _lastRecordTime(0) { }
     void LoadFromConfig();
     void SetRecordUpdateTimeInterval(uint32 t);
-    void RecordUpdateTime(uint32 gameTimeMs, uint32 diff, uint32 sessionCount);
+    void RecordUpdateTime(uint32 gameTimeMs, uint32 sessionCount);
     void RecordUpdateTimeDuration(std::string const& text);
 
 private:

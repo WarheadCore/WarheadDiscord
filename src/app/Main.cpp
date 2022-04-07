@@ -40,7 +40,7 @@
 
 bool StartDB();
 void StopDB();
-void SignalHandler(std::weak_ptr<Warhead::Asio::IoContext> ioContextRef, boost::system::error_code const& error, int signalNumber);
+void SignalHandler(boost::system::error_code const& error, int signalNumber);
 void DiscordUpdateLoop();
 
 int main(int argc, char** argv)
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 #if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
     signals.add(SIGBREAK);
 #endif
-    signals.async_wait(std::bind(&SignalHandler, std::weak_ptr<Warhead::Asio::IoContext>(ioContext), std::placeholders::_1, std::placeholders::_2));
+    signals.async_wait(SignalHandler);
 
     // Start the Boost based thread pool
     int numThreads = sConfigMgr->GetOption<int32>("ThreadPool", 1);
@@ -231,7 +231,7 @@ void StopDB()
     MySQL::Library_End();
 }
 
-void SignalHandler(std::weak_ptr<Warhead::Asio::IoContext> ioContextRef, boost::system::error_code const& error, int /*signalNumber*/)
+void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
 {
     if (!error)
         Discord::StopNow(SHUTDOWN_EXIT_CODE);

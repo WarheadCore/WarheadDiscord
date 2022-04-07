@@ -123,7 +123,7 @@ void DiscordUpdateTime::SetRecordUpdateTimeInterval(uint32 t)
     _recordUpdateTimeInverval = t;
 }
 
-void DiscordUpdateTime::RecordUpdateTime(uint32 gameTimeMs, uint32 diff, uint32 sessionCount)
+void DiscordUpdateTime::RecordUpdateTime(uint32 gameTimeMs, uint32 sessionCount)
 {
     if (_recordUpdateTimeInverval > 0)
     {

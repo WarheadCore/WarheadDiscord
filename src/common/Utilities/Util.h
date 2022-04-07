@@ -19,6 +19,8 @@
 #define _UTIL_H
 
 #include "Define.h"
+#include <array>
+#include <string>
 #include <string_view>
 
 WH_COMMON_API bool StringEqualI(std::string_view str1, std::string_view str2);

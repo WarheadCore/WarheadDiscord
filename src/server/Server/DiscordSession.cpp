@@ -29,9 +29,9 @@ constexpr auto MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;
 
 /// DiscordSession constructor
 DiscordSession::DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock) :
+    _socket(sock),
     _accountId(id),
     _accountName(std::move(name)),
-    _socket(sock),
     _latency(0us)
 {
     if (_socket)
@@ -95,7 +95,6 @@ bool DiscordSession::Update()
 {
     DiscordPacket* packet{ nullptr };
     uint32 processedPackets = 0;
-    time_t currentTime = GetEpochTime().count();
 
     while (_socket && _recvQueue.GetNextPacket(packet))
     {

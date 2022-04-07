@@ -61,7 +61,7 @@ public:
 
     void AddAccountInfo(DiscordAccountInfo info);
     void AddAccountInfo(uint32 id, std::string_view name, std::string_view realmName);
-    inline auto const GetAllAccountsInfo() { return &_accounts; }
+    inline auto GetAllAccountsInfo() { return &_accounts; }
 
     DiscordAccountInfo const* GetAccountInfo(uint32 id);
 

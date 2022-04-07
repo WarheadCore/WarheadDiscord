@@ -21,6 +21,8 @@
 #include "Define.h"
 #include "Duration.h"
 #include <memory>
+#include <string_view>
+#include <string>
 #include <unordered_map>
 
 /// Ban function return codes

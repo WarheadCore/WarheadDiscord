@@ -137,11 +137,6 @@ namespace Warhead::Impl
             }
         }
 
-        auto GetElementType()
-        {
-            return Element;
-        }
-
         //! Adds an item to the queue.
         void AddPacket(Packet* packet, Check nodeID)
         {

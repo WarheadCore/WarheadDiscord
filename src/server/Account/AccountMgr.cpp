@@ -156,7 +156,7 @@ void AccountMgr::CheckAccount(std::string_view accountName, std::function<void(u
 
     //std::lock_guard<std::mutex> guard(_mutex);
 
-    _queryProcessor.AddCallback(DiscordDatabase.AsyncQuery(stmt).WithPreparedCallback([this, execute = std::move(execute)](PreparedQueryResult result)
+    _queryProcessor.AddCallback(DiscordDatabase.AsyncQuery(stmt).WithPreparedCallback([execute = std::move(execute)](PreparedQueryResult result)
     {
         if (!result)
         {
@@ -202,13 +202,13 @@ std::string AccountMgr::GetRandomKey()
     uint32 numbers = MAX_PASS_STR - smallChars - bigChars;
 
     // Rand numbers
-    for (int i = 0; i < numbers; ++i)
+    for (uint32 i = 0; i < numbers; ++i)
         key[i] = char(rand() % 10 + 48);
 
-    for (int i = numbers; i < numbers + bigChars; ++i)
+    for (uint32 i = numbers; i < numbers + bigChars; ++i)
         key[i] = char(rand() % 26 + 65);
 
-    for (int i = numbers + bigChars; i < MAX_PASS_STR; ++i)
+    for (uint32 i = numbers + bigChars; i < MAX_PASS_STR; ++i)
         key[i] = char(rand() % 26 + 97);
 
     Warhead::Containers::RandomShuffle(key);

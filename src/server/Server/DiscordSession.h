@@ -19,7 +19,7 @@
 #define __DISCORD_SESSION_H_
 
 #include "AsyncCallbackProcessor.h"
-#include "DatabaseEnvFwd.h"
+#include "DatabaseEnv.h"
 #include "Define.h"
 #include "DiscordSharedDefines.h"
 #include "Duration.h"

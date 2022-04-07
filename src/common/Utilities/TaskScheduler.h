@@ -19,6 +19,7 @@
 #define _TASK_SCHEDULER_H_
 
 #include "Optional.h"
+#include "Random.h"
 #include "Util.h"
 #include <algorithm>
 #include <chrono>

@@ -148,7 +148,7 @@ void DiscordBot::ConfigureCommands()
         }
     });
 
-    _bot->on_interaction_create([this](const dpp::interaction_create_t& event)
+    _bot->on_interaction_create([](const dpp::interaction_create_t& event)
     {
         dpp::command_interaction cmdData = event.command.get_command_interaction();
 
@@ -168,7 +168,7 @@ void DiscordBot::ConfigureCommands()
         }
     });
 
-    _bot->on_form_submit([this](const dpp::form_submit_t& event)
+    _bot->on_form_submit([](const dpp::form_submit_t& event)
     {
         auto const& value = std::get<std::string>(event.components[0].components[0].value);
         std::string key = sAccountMgr->GetRandomKey();

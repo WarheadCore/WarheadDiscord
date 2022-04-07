@@ -29,9 +29,8 @@ public:
         sock->SetSendBufferSize(sDiscordSocketMgr.GetApplicationSendBufferSize());
     }
 
-    void SocketRemoved(std::shared_ptr<DiscordSocket> sock) override
+    void SocketRemoved(std::shared_ptr<DiscordSocket> /*sock*/) override
     {
-
     }
 };
 

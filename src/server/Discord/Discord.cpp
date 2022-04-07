@@ -166,12 +166,12 @@ void Discord::Update(uint32 diff)
     ///- Update the game time and check for shutdown time
     _UpdateGameTime();
 
-    Seconds currentGameTime = GameTime::GetGameTime();
+    // Seconds currentGameTime = GameTime::GetGameTime();
 
     sDiscordUpdateTime.UpdateWithDiff(diff);
 
     // Record update if recording set in log and diff is greater then minimum set in log
-    sDiscordUpdateTime.RecordUpdateTime(getMSTime(), diff, GetActiveSessionCount());
+    sDiscordUpdateTime.RecordUpdateTime(getMSTime(), GetActiveSessionCount());
 
     /// <li> Handle session updates when the timer has passed
     UpdateSessions();
