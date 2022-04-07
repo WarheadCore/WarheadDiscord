@@ -43,8 +43,6 @@ namespace
 {
     // Const loggers name
     constexpr auto LOGGER_ROOT = "root";
-    constexpr auto LOGGER_GM = "commands.gm";
-    constexpr auto LOGGER_PLAYER_DUMP = "entities.player.dump";
 
     // Prefix's
     constexpr auto PREFIX_LOGGER = "Logger.";
