@@ -16,20 +16,20 @@
  */
 
 #include "DiscordSocket.h"
+#include "BanMgr.h"
 #include "Config.h"
 #include "CryptoHash.h"
 #include "CryptoRandom.h"
 #include "DatabaseEnv.h"
-#include "IPLocation.h"
-#include "Opcodes.h"
-#include "DiscordSession.h"
-#include "DiscordSharedDefines.h"
 #include "Discord.h"
 #include "DiscordPacketHeader.h"
-#include "SmartEnum.h"
-#include "SRP6.h"
-#include "BanMgr.h"
+#include "DiscordSession.h"
+#include "DiscordSharedDefines.h"
 #include "GameTime.h"
+#include "IPLocation.h"
+#include "Opcodes.h"
+#include "SRP6.h"
+#include "SmartEnum.h"
 
 using boost::asio::ip::tcp;
 
@@ -222,7 +222,7 @@ struct AuthSession
     std::string Account;
     std::string Key;
     std::string CoreName;
-    std::string CoreVersion;    
+    std::string CoreVersion;
     uint32 ModuleVersion{ 0 };
     int64 ServerID;
 };
@@ -243,7 +243,7 @@ struct AccountInfo
 
     //             0         1           2               3                4             5               6
     // SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`
-    //       7              8                             
+    //       7              8
     // `ab`.`bandate`, `ab`.`unbandate`
     // FROM `account` a
     // LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1
@@ -280,7 +280,7 @@ struct AccountInfo
         std::string safeKey = key;
         Utf8ToUpperOnlyLatin(safeKey);
         std::transform(safeKey.begin(), safeKey.end(), safeKey.begin(), ::toupper);
-     
+
         return Warhead::Crypto::SRP6::CheckLogin(safeAccount, safeKey, Salt, Verifier);
     }
 };

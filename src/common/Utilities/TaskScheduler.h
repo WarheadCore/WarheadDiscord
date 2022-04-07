@@ -18,12 +18,12 @@
 #ifndef _TASK_SCHEDULER_H_
 #define _TASK_SCHEDULER_H_
 
+#include "Optional.h"
 #include "Util.h"
 #include <algorithm>
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <queue>
 #include <set>
 #include <utility>
@@ -71,13 +71,13 @@ class WH_COMMON_API TaskScheduler
 
         timepoint_t _end;
         duration_t _duration;
-        std::optional<group_t> _group;
+        Optional<group_t> _group;
         repeated_t _repeated;
         task_handler_t _task;
 
     public:
         // All Argument construct
-        Task(timepoint_t const& end, duration_t const& duration, std::optional<group_t> const& group,
+        Task(timepoint_t const& end, duration_t const& duration, Optional<group_t> const& group,
              repeated_t const repeated, task_handler_t const& task)
             : _end(end), _duration(duration), _group(group), _repeated(repeated), _task(task) { }
 

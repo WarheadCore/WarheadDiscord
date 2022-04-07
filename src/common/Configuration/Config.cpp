@@ -16,10 +16,10 @@
  */
 
 #include "Config.h"
+#include "Log.h"
 #include "StringConvert.h"
 #include "StringFormat.h"
 #include "Tokenize.h"
-#include "Log.h"
 #include "Util.h"
 #include <fstream>
 #include <mutex>

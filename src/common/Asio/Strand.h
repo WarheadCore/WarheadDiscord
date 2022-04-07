@@ -19,8 +19,8 @@
 #define Strand_h__
 
 #include "IoContext.h"
-#include <boost/asio/strand.hpp>
 #include <boost/asio/bind_executor.hpp>
+#include <boost/asio/strand.hpp>
 
 namespace Warhead::Asio
 {

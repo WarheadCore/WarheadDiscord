@@ -213,4 +213,3 @@ bool DatabaseLoader::Process(std::queue<Predicate>& queue)
 
 template WH_DATABASE_API
 DatabaseLoader& DatabaseLoader::AddDatabase<DiscordDatabaseConnection>(DatabaseWorkerPool<DiscordDatabaseConnection>&, std::string const&);
-

@@ -19,11 +19,11 @@
 #define _DISCORD_SOCKET_H_
 
 #include "Define.h"
-#include "MPSCQueue.h"
-#include "Socket.h"
 #include "DiscordPacket.h"
 #include "DiscordSession.h"
+#include "MPSCQueue.h"
 #include "Opcodes.h"
+#include "Socket.h"
 #include <boost/asio/ip/tcp.hpp>
 
 using boost::asio::ip::tcp;

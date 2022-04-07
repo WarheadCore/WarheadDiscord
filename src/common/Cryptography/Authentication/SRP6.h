@@ -20,11 +20,10 @@
 
 #include "AuthDefines.h"
 #include "BigNumber.h"
-#include "Define.h"
 #include "CryptoHash.h"
 #include "Define.h"
+#include "Optional.h"
 #include <array>
-#include <optional>
 
 namespace Warhead::Crypto
 {
@@ -55,7 +54,7 @@ namespace Warhead::Crypto
         }
 
         SRP6(std::string const& username, Salt const& salt, Verifier const& verifier);
-        std::optional<SessionKey> VerifyChallengeResponse(EphemeralKey const& A, SHA1::Digest const& clientM);
+        Optional<SessionKey> VerifyChallengeResponse(EphemeralKey const& A, SHA1::Digest const& clientM);
 
     private:
         bool _used = false; // a single instance can only be used to verify once

@@ -18,8 +18,8 @@
 #ifndef AllPackets_h__
 #define AllPackets_h__
 
-#include "MiscPackets.h"
 #include "AuthPackets.h"
 #include "MessagePackets.h"
+#include "MiscPackets.h"
 
 #endif // AllPackets_h__

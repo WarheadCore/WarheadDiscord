@@ -18,8 +18,8 @@
 #ifndef AuthPackets_h__
 #define AuthPackets_h__
 
-#include "Packet.h"
 #include "DiscordSharedDefines.h"
+#include "Packet.h"
 
 namespace DiscordPackets::Auth
 {

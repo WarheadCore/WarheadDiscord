@@ -16,18 +16,18 @@
  */
 
 #include "Discord.h"
-#include "DiscordBot.h"
-#include "DiscordSession.h"
-#include "Errors.h"
-#include "StopWatch.h"
-#include "GameTime.h"
-#include "UpdateTime.h"
-#include "DiscordConfig.h"
-#include "DatabaseEnv.h"
-#include "DiscordSharedDefines.h"
-#include "Log.h"
 #include "AccountMgr.h"
+#include "DatabaseEnv.h"
+#include "DiscordBot.h"
+#include "DiscordConfig.h"
+#include "DiscordSession.h"
+#include "DiscordSharedDefines.h"
+#include "Errors.h"
+#include "GameTime.h"
+#include "Log.h"
 #include "Opcodes.h"
+#include "StopWatch.h"
+#include "UpdateTime.h"
 #include <boost/asio/ip/address.hpp>
 
 std::atomic<bool> Discord::m_stopEvent = false;

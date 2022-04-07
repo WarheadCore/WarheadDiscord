@@ -16,13 +16,13 @@
  */
 
 #include "AccountMgr.h"
-#include "Util.h"
-#include "DiscordSharedDefines.h"
+#include "Containers.h"
 #include "DatabaseEnv.h"
+#include "DiscordSharedDefines.h"
+#include "Log.h"
 #include "SRP6.h"
 #include "StopWatch.h"
-#include "Log.h"
-#include "Containers.h"
+#include "Util.h"
 #include <algorithm>
 
 /*static*/ AccountMgr* AccountMgr::instance()

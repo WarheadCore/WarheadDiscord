@@ -17,12 +17,12 @@
 
 #include "DiscordSession.h"
 #include "DatabaseEnv.h"
+#include "DiscordPacket.h"
+#include "DiscordSocket.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "PacketUtilities.h"
 #include "QueryHolder.h"
-#include "DiscordPacket.h"
-#include "DiscordSocket.h"
 #include "Timer.h"
 
 constexpr auto MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;

@@ -16,15 +16,15 @@
  */
 
 #include "BanMgr.h"
-#include "DatabaseEnv.h"
 #include "AccountMgr.h"
 #include "Containers.h"
-#include "GameTime.h"
+#include "DatabaseEnv.h"
 #include "Discord.h"
 #include "DiscordSession.h"
+#include "GameTime.h"
 #include "Log.h"
-#include "Timer.h"
 #include "StopWatch.h"
+#include "Timer.h"
 
 BanInfo::BanInfo(Seconds duration, Seconds banDate /*= 0s*/) :
     Duration(duration), BanDate(banDate == 0s ? GameTime::GetGameTime() : banDate), UnabanDate(banDate + duration) { }

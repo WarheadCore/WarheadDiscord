@@ -15,14 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "MiscPackets.h"
 #include "Define.h"
+#include "DiscordPacket.h"
+#include "DiscordSession.h"
 #include "Log.h"
+#include "MiscPackets.h"
 #include "Opcodes.h"
 #include "Timer.h"
 #include "Util.h"
-#include "DiscordPacket.h"
-#include "DiscordSession.h"
 
 void DiscordSession::HandleHelloOpcode(DiscordPackets::Misc::HelloClient& packet)
 {

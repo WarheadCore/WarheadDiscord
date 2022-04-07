@@ -21,8 +21,8 @@
 #include "IpAddress.h"
 #include "Log.h"
 #include "StringConvert.h"
-#include <fstream>
 #include <algorithm>
+#include <fstream>
 
 IpLocationStore::IpLocationStore()
 {

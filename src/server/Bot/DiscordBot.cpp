@@ -17,15 +17,15 @@
 
 #include "DiscordBot.h"
 #include "AccountMgr.h"
+#include "Discord.h"
 #include "DiscordConfig.h"
 #include "GameTime.h"
 #include "GitRevision.h"
 #include "Log.h"
+#include "StopWatch.h"
 #include "StringConvert.h"
 #include "Tokenize.h"
 #include "UpdateTime.h"
-#include "Discord.h"
-#include "StopWatch.h"
 #include <dpp/dpp.h>
 
 DiscordBot* DiscordBot::instance()

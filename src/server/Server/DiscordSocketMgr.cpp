@@ -17,8 +17,8 @@
 
 #include "DiscordSocketMgr.h"
 #include "Config.h"
-#include "NetworkThread.h"
 #include "DiscordSocket.h"
+#include "NetworkThread.h"
 #include <boost/system/error_code.hpp>
 
 class DiscordSocketThread : public NetworkThread<DiscordSocket>

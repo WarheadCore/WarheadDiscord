@@ -15,11 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Opcodes.h"
+#include "AuthPackets.h"
 #include "DiscordPacket.h"
 #include "DiscordSession.h"
-#include "AuthPackets.h"
 #include "Log.h"
+#include "Opcodes.h"
 #include "SmartEnum.h"
 
 void DiscordSession::SendAuthResponse(DiscordAuthResponseCodes code)

@@ -17,9 +17,9 @@
 
 #include "DatabaseWorkerPool.h"
 #include "AdhocStatement.h"
+#include "DiscordDatabase.h"
 #include "Errors.h"
 #include "Log.h"
-#include "DiscordDatabase.h"
 #include "MySQLPreparedStatement.h"
 #include "MySQLWorkaround.h"
 #include "PCQueue.h"

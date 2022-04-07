@@ -36,12 +36,12 @@
 
 #define _NO_CVCONST_H
 
-#include <dbghelp.h>
 #include "WheatyExceptionReport.h"
 #include "Define.h"
 #include "Errors.h"
 #include "GitRevision.h"
 #include <algorithm>
+#include <dbghelp.h>
 
 #define CrashFolder _T("Crashes")
 #pragma comment(linker, "/DEFAULTLIB:dbghelp.lib")

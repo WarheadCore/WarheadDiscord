@@ -18,11 +18,11 @@
 #ifndef _DISCORD_H_
 #define _DISCORD_H_
 
-#include "Define.h"
 #include "DatabaseEnvFwd.h"
-#include "Timer.h"
-#include "TaskScheduler.h"
+#include "Define.h"
 #include "DiscordSharedDefines.h"
+#include "TaskScheduler.h"
+#include "Timer.h"
 #include <atomic>
 #include <unordered_map>
 

@@ -18,8 +18,8 @@
 #include "SRP6.h"
 #include "CryptoRandom.h"
 #include "Util.h"
-#include <functional>
 #include <algorithm>
+#include <functional>
 
 using SHA1 = Warhead::Crypto::SHA1;
 using SRP6 = Warhead::Crypto::SRP6;
@@ -81,7 +81,7 @@ using SRP6 = Warhead::Crypto::SRP6;
 SRP6::SRP6(std::string const& username, Salt const& salt, Verifier const& verifier)
     : _I(SHA1::GetDigestOf(username)), _b(Crypto::GetRandomBytes<32>()), _v(verifier), s(salt), B(_B(_b, _v)) {}
 
-std::optional<SessionKey> SRP6::VerifyChallengeResponse(EphemeralKey const& A, SHA1::Digest const& clientM)
+Optional<SessionKey> SRP6::VerifyChallengeResponse(EphemeralKey const& A, SHA1::Digest const& clientM)
 {
     ASSERT(!_used);
     _used = true;

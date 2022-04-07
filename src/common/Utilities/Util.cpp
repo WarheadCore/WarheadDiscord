@@ -16,10 +16,10 @@
  */
 
 #include "Util.h"
-#include "Errors.h"
 #include "Containers.h"
-#include <string>
+#include "Errors.h"
 #include <algorithm>
+#include <string>
 #include <utf8.h>
 
 bool StringEqualI(std::string_view a, std::string_view b)

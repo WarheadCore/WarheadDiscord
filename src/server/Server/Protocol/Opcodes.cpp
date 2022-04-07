@@ -16,9 +16,9 @@
  */
 
 #include "Opcodes.h"
-#include "Log.h"
 #include "AllPackets.h"
 #include "DiscordSession.h"
+#include "Log.h"
 
 template<class PacketClass, void(DiscordSession::* HandlerFunction)(PacketClass&)>
 class PacketHandler : public ClientOpcodeHandler

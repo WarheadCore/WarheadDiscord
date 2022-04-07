@@ -50,7 +50,7 @@ enum class DiscordAuthResponseCodes : uint8
     BannedAccount,
     BannedIP,
     BannedPermanentlyAccount,
-    BannedPermanentlyIP,    
+    BannedPermanentlyIP,
     ServerOffline
 };
 

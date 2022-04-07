@@ -20,13 +20,13 @@
 
 #include "Define.h"
 #include "Errors.h"
+#include "Optional.h"
 #include "Types.h"
 #include "Util.h"
 #include <charconv>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <optional>
 
 namespace Warhead::Impl::StringConvertImpl
 {
@@ -38,7 +38,7 @@ namespace Warhead::Impl::StringConvertImpl
     template <typename T>
     struct For<T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>>>
     {
-        static std::optional<T> FromString(std::string_view str, int base = 10)
+        static Optional<T> FromString(std::string_view str, int base = 10)
         {
             if (base == 0)
             {
@@ -93,7 +93,7 @@ namespace Warhead::Impl::StringConvertImpl
     template <>
     struct For<bool, void>
     {
-        static std::optional<bool> FromString(std::string_view str, int strict = 0) /* this is int to match the signature for "proper" integral types */
+        static Optional<bool> FromString(std::string_view str, int strict = 0) /* this is int to match the signature for "proper" integral types */
         {
             if (strict)
             {
@@ -131,7 +131,7 @@ namespace Warhead::Impl::StringConvertImpl
     template <typename T>
     struct For<T, std::enable_if_t<std::is_floating_point_v<T>>>
     {
-        static std::optional<T> FromString(std::string_view str, std::chars_format fmt = std::chars_format())
+        static Optional<T> FromString(std::string_view str, std::chars_format fmt = std::chars_format())
         {
             if (str.empty())
             {
@@ -172,7 +172,7 @@ namespace Warhead::Impl::StringConvertImpl
         }
 
         // this allows generic converters for all numeric types (easier templating!)
-        static std::optional<T> FromString(std::string_view str, int base)
+        static Optional<T> FromString(std::string_view str, int base)
         {
             if (base == 16)
             {
@@ -198,7 +198,7 @@ namespace Warhead::Impl::StringConvertImpl
     template <typename T>
     struct For<T, std::enable_if_t<std::is_floating_point_v<T>>>
     {
-        static std::optional<T> FromString(std::string_view str, int base = 0)
+        static Optional<T> FromString(std::string_view str, int base = 0)
         {
             try
             {
@@ -241,7 +241,7 @@ namespace Warhead::Impl::StringConvertImpl
 namespace Warhead
 {
     template <typename Result, typename... Params>
-    std::optional<Result> StringTo(std::string_view str, Params&&... params)
+    Optional<Result> StringTo(std::string_view str, Params&&... params)
     {
         return Warhead::Impl::StringConvertImpl::For<Result>::FromString(str, std::forward<Params>(params)...);
     }

@@ -16,19 +16,19 @@
  */
 
 #include "Config.h"
-#include "StopWatch.h"
-#include "GitRevision.h"
-#include "Log.h"
-#include "Logo.h"
-#include "MySQLThreading.h"
-#include "IPLocation.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
-#include "OpenSSLCrypto.h"
 #include "Discord.h"
 #include "DiscordConfig.h"
 #include "DiscordSocket.h"
 #include "DiscordSocketMgr.h"
+#include "GitRevision.h"
+#include "IPLocation.h"
+#include "Log.h"
+#include "Logo.h"
+#include "MySQLThreading.h"
+#include "OpenSSLCrypto.h"
+#include "StopWatch.h"
 #include <boost/asio/signal_set.hpp>
 #include <boost/version.hpp>
 #include <openssl/crypto.h>
@@ -236,4 +236,3 @@ void SignalHandler(std::weak_ptr<Warhead::Asio::IoContext> ioContextRef, boost::
     if (!error)
         Discord::StopNow(SHUTDOWN_EXIT_CODE);
 }
-

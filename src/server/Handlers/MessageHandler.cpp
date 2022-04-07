@@ -16,9 +16,9 @@
  */
 
 #include "Define.h"
-#include "Log.h"
 #include "DiscordBot.h"
 #include "DiscordSession.h"
+#include "Log.h"
 #include "MessagePackets.h"
 #include <dpp/dpp.h>
 

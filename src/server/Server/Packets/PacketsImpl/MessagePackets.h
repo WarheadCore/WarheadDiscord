@@ -18,8 +18,8 @@
 #ifndef MessagePackets_h__
 #define MessagePackets_h__
 
-#include "Packet.h"
 #include "DiscordSharedDefines.h"
+#include "Packet.h"
 
 namespace DiscordPackets::Message
 {

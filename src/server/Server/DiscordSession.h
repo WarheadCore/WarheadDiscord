@@ -18,12 +18,12 @@
 #ifndef __DISCORD_SESSION_H_
 #define __DISCORD_SESSION_H_
 
-#include "Define.h"
 #include "AsyncCallbackProcessor.h"
 #include "DatabaseEnvFwd.h"
+#include "Define.h"
 #include "DiscordSharedDefines.h"
-#include "PacketQueue.h"
 #include "Duration.h"
+#include "PacketQueue.h"
 
 class DiscordPacket;
 class DiscordSocket;
