@@ -43,6 +43,11 @@ void StopDB();
 void SignalHandler(boost::system::error_code const& error, int signalNumber);
 void DiscordUpdateLoop();
 
+#if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
+#include <boost/dll/shared_library.hpp>
+#include <timeapi.h>
+#endif
+
 int main(int argc, char** argv)
 {
     signal(SIGABRT, &Warhead::AbortHandler);
@@ -65,6 +70,47 @@ int main(int argc, char** argv)
         }
         ++count;
     }
+
+#if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
+    Optional<UINT> newTimerResolution;
+    boost::system::error_code dllError;
+
+    std::shared_ptr<boost::dll::shared_library> winmm(new boost::dll::shared_library("winmm.dll", dllError, boost::dll::load_mode::search_system_folders), [&](boost::dll::shared_library* lib)
+    {
+        try
+        {
+            if (newTimerResolution)
+                lib->get<decltype(timeEndPeriod)>("timeEndPeriod")(*newTimerResolution);
+        }
+        catch (std::exception const&)
+        {
+            // ignore
+        }
+
+        delete lib;
+    });
+
+    if (winmm->is_loaded())
+    {
+        try
+        {
+            auto timeGetDevCapsPtr = winmm->get<decltype(timeGetDevCaps)>("timeGetDevCaps");
+
+            // setup timer resolution
+            TIMECAPS timeResolutionLimits;
+            if (timeGetDevCapsPtr(&timeResolutionLimits, sizeof(TIMECAPS)) == TIMERR_NOERROR)
+            {
+                auto timeBeginPeriodPtr = winmm->get<decltype(timeBeginPeriod)>("timeBeginPeriod");
+                newTimerResolution = std::min(std::max(timeResolutionLimits.wPeriodMin, 1u), timeResolutionLimits.wPeriodMax);
+                timeBeginPeriodPtr(*newTimerResolution);
+            }
+        }
+        catch (std::exception const& e)
+        {
+            fmt::print("Failed to initialize timer resolution: {}", e.what());
+        }
+    }
+#endif
 
     if (!sConfigMgr->LoadAppConfigs(configFile))
         return 1;
@@ -179,8 +225,8 @@ int main(int argc, char** argv)
 
 void DiscordUpdateLoop()
 {
-    uint32 realCurrTime = 0;
-    uint32 realPrevTime = getMSTime();
+    Milliseconds realCurrTime = 0ms;
+    Milliseconds realPrevTime = GetTimeMS();
 
     DiscordDatabase.WarnAboutSyncQueries(true);
 
@@ -188,10 +234,10 @@ void DiscordUpdateLoop()
     while (!Discord::IsStopped())
     {
         ++Discord::m_worldLoopCounter;
-        realCurrTime = getMSTime();
+        realCurrTime = GetTimeMS();
 
-        uint32 diff = getMSTimeDiff(realPrevTime, realCurrTime);
-        if (!diff)
+        Milliseconds diff = GetMSTimeDiff(realPrevTime, realCurrTime);
+        if (diff == 0s)
         {
             // sleep until enough time passes that we can update all timers
             std::this_thread::sleep_for(1ms);

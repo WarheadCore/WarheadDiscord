@@ -58,9 +58,9 @@ public:
     [[nodiscard]] const auto& GetAllSessions() const { return _sessions; }
     [[nodiscard]] uint32 GetActiveSessionCount() const { return _sessions.size(); }
 
-    /// Get number of players
-    [[nodiscard]] inline uint32 GetPlayerCount() const { return _sessionCount; }
-    [[nodiscard]] inline uint32 GetMaxPlayerCount() const { return _maxSessionCount; }
+    /// Get number of sessions
+    [[nodiscard]] inline uint32 GetSessionCount() const { return _sessionCount; }
+    [[nodiscard]] inline uint32 GetMaxSessionCount() const { return _maxSessionCount; }
 
     /// Increase/Decrease number of players
     inline void IncreaseSessionCount()
@@ -92,7 +92,7 @@ public:
     static void StopNow(uint8 exitcode) { m_stopEvent = true; m_ExitCode = exitcode; }
     static bool IsStopped() { return m_stopEvent; }
 
-    void Update(uint32 diff);
+    void Update(Milliseconds diff);
     void UpdateSessions();
 
     void KickAll();

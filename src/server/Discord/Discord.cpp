@@ -124,8 +124,6 @@ void Discord::AddSession(DiscordSession* session)
 /// Initialize config values
 void Discord::LoadConfigSettings()
 {
-    // load update time related configs
-    sDiscordUpdateTime.LoadFromConfig();
 }
 
 /// Initialize the Discord
@@ -150,6 +148,13 @@ void Discord::SetInitialDiscordSettings()
         context.Repeat();
     });
 
+    _scheduler.Schedule(15s, [this](TaskContext context)
+    {
+        LOG_INFO("time.diff", "> Update time diff. Last {} ms, Avg {} ms. Online {} sessions",
+            sDiscordUpdateTime.GetLastUpdateTime().count(), sDiscordUpdateTime.GetAverageUpdateTime().count(), GetActiveSessionCount());
+        context.Repeat(5min);
+    });
+
     sAccountMgr->Initialize();
 
     // Start discord bot
@@ -161,20 +166,17 @@ void Discord::SetInitialDiscordSettings()
     LOG_INFO("server.loading", " ");
 }
 
-void Discord::Update(uint32 diff)
+void Discord::Update(Milliseconds diff)
 {
     ///- Update the game time and check for shutdown time
     _UpdateGameTime();
 
-    // Seconds currentGameTime = GameTime::GetGameTime();
+    sDiscordUpdateTime.Update(diff);
 
-    sDiscordUpdateTime.UpdateWithDiff(diff);
-
-    // Record update if recording set in log and diff is greater then minimum set in log
-    sDiscordUpdateTime.RecordUpdateTime(getMSTime(), GetActiveSessionCount());
-
-    /// <li> Handle session updates when the timer has passed
-    UpdateSessions();
+    {
+        /// <li> Handle session updates when the timer has passed
+        UpdateSessions();
+    }
 
     sAccountMgr->Update();
 
