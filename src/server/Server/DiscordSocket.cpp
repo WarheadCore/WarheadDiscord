@@ -81,6 +81,9 @@ void DiscordSocket::CheckIpCallback(PreparedQueryResult result)
 
 bool DiscordSocket::Update()
 {
+    if (!BaseSocket::Update())
+        return false;
+
     DiscordPacket* queued{ nullptr };
     MessageBuffer buffer(_sendBufferSize);
 
@@ -115,9 +118,6 @@ bool DiscordSocket::Update()
     if (buffer.GetActiveSize() > 0)
         QueuePacket(std::move(buffer));
 
-    if (!BaseSocket::Update())
-        return false;
-
     _queryProcessor.ProcessReadyCallbacks();
 
     return true;
@@ -128,7 +128,7 @@ void DiscordSocket::OnClose()
     {
         std::lock_guard<std::mutex> sessionGuard(_discordSessionLock);
         _discordSession = nullptr;
-        LOG_DEBUG("server", "> Disconnect from {}", GetRemoteIpAddress().to_string());
+        LOG_DEBUG("network", "> Disconnect from {}", GetRemoteIpAddress().to_string());
     }
 }
 

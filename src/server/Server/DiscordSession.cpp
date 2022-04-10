@@ -24,6 +24,7 @@
 #include "PacketUtilities.h"
 #include "QueryHolder.h"
 #include "Timer.h"
+#include "Discord.h"
 
 constexpr auto MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;
 
@@ -132,12 +133,18 @@ bool DiscordSession::Update()
 
     ProcessQueryCallbacks();
 
+    if (_socket && !_socket->IsOpen())
+        _socket.reset();
+
+    if (!_socket)
+        return false;
+
     return true;
 }
 
 bool DiscordSession::HandleSocketClosed()
 {
-    if (_socket && !_socket->IsOpen() /*world stop*/)
+    if (_socket && !_socket->IsOpen() && !Discord::IsStopped())
     {
         _socket = nullptr;
         return true;

@@ -48,12 +48,10 @@ Discord::Discord()
 Discord::~Discord()
 {
     ///- Empty the kicked session set
-    while (!_sessions.empty())
-    {
-        // not remove from queue, prevent loading new sessions
-        delete _sessions.begin()->second;
-        _sessions.erase(_sessions.begin());
-    }
+    for (auto& [accountId, session] : _sessions)
+        delete session;
+
+    _sessions.clear();
 }
 
 /*static*/ Discord* Discord::instance()
@@ -83,15 +81,13 @@ DiscordSession* Discord::FindSession(uint32 id) const
 }
 
 /// Remove a given session
-bool Discord::KickSession(uint32 id)
+void Discord::KickSession(uint32 id)
 {
     ///- Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
     auto const& itr = _sessions.find(id);
 
     if (itr != _sessions.end() && itr->second)
         itr->second->KickSession("KickSession", false);
-
-    return true;
 }
 
 void Discord::AddSession(DiscordSession* session)
@@ -100,23 +96,16 @@ void Discord::AddSession(DiscordSession* session)
 
     // kick existing session with same account (if any)
     // if character on old session is being loaded, then return
-    if (!KickSession(session->GetAccountId()))
-    {
-        session->KickSession("kick existing session with same account");
-        delete session; // session not added yet in session list, so not listed in queue
-        return;
-    }
+    KickSession(session->GetAccountId());
 
     auto const& old = _sessions.find(session->GetAccountId());
     if (old != _sessions.end())
     {
-        DiscordSession* oldSession = old->second;
-
-        if (!oldSession->HandleSocketClosed())
-            delete oldSession;
+        delete old->second;
+        _sessions.erase(session->GetAccountId());
     }
 
-    _sessions[session->GetAccountId()] = session;
+    _sessions.emplace(session->GetAccountId(), session);
     session->SendAuthResponse(DiscordAuthResponseCodes::Ok);
     UpdateMaxSessionCounters();
 }
@@ -283,17 +272,16 @@ void Discord::ShutdownCancel()
 
 void Discord::UpdateSessions()
 {
-    for (auto& [accountId, session] : _sessions)
+    for (std::unordered_map<uint32, DiscordSession*>::const_iterator itr = _sessions.begin(), next; itr != _sessions.end(); itr = next)
     {
-        if (session->HandleSocketClosed())
-        {
-            _sessions.erase(accountId);
-            continue;
-        }
+        next = itr;
+        ++next;
+
+        auto session = itr->second;
 
         if (!session->Update())
         {
-            _sessions.erase(accountId);
+            _sessions.erase(itr->first);
             delete session;
         }
     }

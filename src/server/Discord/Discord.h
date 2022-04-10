@@ -50,8 +50,8 @@ public:
 
     DiscordSession* FindSession(uint32 id) const;
 
-    void AddSession(DiscordSession* s);
-    bool KickSession(uint32 id);
+    void AddSession(DiscordSession* session);
+    void KickSession(uint32 id);
 
     /// Get the number of current active sessions
     void UpdateMaxSessionCounters();
@@ -76,8 +76,6 @@ public:
 
     /// Close
     void SetClosed(bool val);
-
-    //bool HasRecentlyDisconnected(DiscordSession*);
 
     void SetInitialDiscordSettings();
     void LoadConfigSettings();
