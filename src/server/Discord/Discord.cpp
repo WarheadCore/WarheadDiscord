@@ -30,9 +30,9 @@
 #include "UpdateTime.h"
 #include <boost/asio/ip/address.hpp>
 
-std::atomic<bool> Discord::m_stopEvent = false;
-uint8 Discord::m_ExitCode = SHUTDOWN_EXIT_CODE;
-uint32 Discord::m_worldLoopCounter = 0;
+std::atomic<bool> Discord::_stopEvent = false;
+uint8 Discord::_exitCode = SHUTDOWN_EXIT_CODE;
+uint32 Discord::_loopCounter = 0;
 
 /// Discord constructor
 Discord::Discord()
@@ -196,7 +196,7 @@ void Discord::_UpdateGameTime()
         ///- ... and it is overdue, stop the world (set m_stopEvent)
         if (_shutdownTimer <= elapsed)
         {
-            m_stopEvent = true; // exist code already set
+            _stopEvent = true; // exist code already set
         }
         ///- ... else decrease it and if necessary display a shutdown countdown to the users
         else
@@ -215,7 +215,7 @@ void Discord::ShutdownServ(Seconds time, uint8 exitcode, const std::string_view 
     if (IsStopped())
         return;
 
-    m_ExitCode = exitcode;
+    _exitCode = exitcode;
 
     if (time < 2s && GetActiveSessionCount())
     {
@@ -230,7 +230,7 @@ void Discord::ShutdownServ(Seconds time, uint8 exitcode, const std::string_view 
     ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     if (time == 0s)
     {
-        m_stopEvent = true; // exist code already set
+        _stopEvent = true; // exist code already set
     }
     ///- Else set the shutdown timer and warn users
     else
@@ -261,11 +261,11 @@ void Discord::ShutdownMsg(bool show, const std::string_view reason)
 void Discord::ShutdownCancel()
 {
     // nothing cancel or too later
-    if (_shutdownTimer == 0s || m_stopEvent)
+    if (_shutdownTimer == 0s || _stopEvent)
         return;
 
     _shutdownTimer = 0s;
-    m_ExitCode = SHUTDOWN_EXIT_CODE; // to default value
+    _exitCode = SHUTDOWN_EXIT_CODE; // to default value
 
     LOG_WARN("server", "Server restart cancelled.");
 }

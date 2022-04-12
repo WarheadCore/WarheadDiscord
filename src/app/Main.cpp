@@ -34,6 +34,11 @@
 #include <openssl/crypto.h>
 #include <openssl/opensslv.h>
 
+#if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
+#include <boost/dll/shared_library.hpp>
+#include <timeapi.h>
+#endif
+
 #ifndef _WARHEAD_DISCORD_CONFIG
 #define _WARHEAD_DISCORD_CONFIG "WarheadDiscord.conf"
 #endif
@@ -43,10 +48,26 @@ void StopDB();
 void SignalHandler(boost::system::error_code const& error, int signalNumber);
 void DiscordUpdateLoop();
 
-#if WARHEAD_PLATFORM == WARHEAD_PLATFORM_WINDOWS
-#include <boost/dll/shared_library.hpp>
-#include <timeapi.h>
-#endif
+class FreezeDetector
+{
+public:
+    FreezeDetector(Warhead::Asio::IoContext& ioContext)
+        : _timer(ioContext) { }
+
+    static void Start(std::shared_ptr<FreezeDetector> const& freezeDetector)
+    {
+        freezeDetector->_timer.expires_from_now(boost::posix_time::seconds(5));
+        freezeDetector->_timer.async_wait(std::bind(&FreezeDetector::Handler, std::weak_ptr<FreezeDetector>(freezeDetector), std::placeholders::_1));
+    }
+
+    static void Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, boost::system::error_code const& error);
+
+private:
+    Warhead::Asio::DeadlineTimer _timer;
+    uint32 LoopCounter{ 0 };
+    Milliseconds _lastChangeMsTime{ GetTimeMS() };
+    Milliseconds _maxCoreStuckTime{ 1min };
+};
 
 int main(int argc, char** argv)
 {
@@ -203,9 +224,12 @@ int main(int argc, char** argv)
         sDiscord->UpdateSessions();       // real players unload required UpdateSessions call
 
         sDiscordSocketMgr.StopNetwork();
-
-        //sDiscord->SendServerShutdown();
     });
+
+    // Start the freeze check callback cycle in 5 seconds (cycle itself is 1 sec)
+    auto freezeDetector = std::make_shared<FreezeDetector>(*ioContext);
+    FreezeDetector::Start(freezeDetector);
+    LOG_INFO("server", "Starting up anti-freeze thread (1 min max stuck time)...");
 
     LOG_INFO("server", "{} (DiscordServer-daemon) ready...", GitRevision::GetFullVersion());
 
@@ -233,7 +257,7 @@ void DiscordUpdateLoop()
     ///- While we have not Discord::m_stopEvent, update the world
     while (!Discord::IsStopped())
     {
-        ++Discord::m_worldLoopCounter;
+        ++Discord::_loopCounter;
         realCurrTime = GetTimeMS();
 
         Milliseconds diff = GetMSTimeDiff(realPrevTime, realCurrTime);
@@ -281,4 +305,28 @@ void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
 {
     if (!error)
         Discord::StopNow(SHUTDOWN_EXIT_CODE);
+}
+
+void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, boost::system::error_code const& error)
+{
+    if (!error)
+    {
+        if (std::shared_ptr<FreezeDetector> freezeDetector = freezeDetectorRef.lock())
+        {
+            auto curtime = GetTimeMS();
+
+            uint32 loopCounter = Discord::_loopCounter;
+            if (freezeDetector->LoopCounter != loopCounter)
+            {
+                freezeDetector->_lastChangeMsTime = curtime;
+                freezeDetector->LoopCounter = loopCounter;
+            }
+            // possible freeze
+            else if (GetMSTimeDiff(freezeDetector->_lastChangeMsTime, curtime) > freezeDetector->_maxCoreStuckTime)
+                ABORT();
+
+            freezeDetector->_timer.expires_from_now(boost::posix_time::seconds(1));
+            freezeDetector->_timer.async_wait(std::bind(&FreezeDetector::Handler, freezeDetectorRef, std::placeholders::_1));
+        }
+    }
 }

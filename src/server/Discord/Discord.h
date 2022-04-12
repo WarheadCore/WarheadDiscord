@@ -46,7 +46,7 @@ public:
 
     static Discord* instance();
 
-    static uint32 m_worldLoopCounter;
+    static uint32 _loopCounter;
 
     DiscordSession* FindSession(uint32 id) const;
 
@@ -86,9 +86,9 @@ public:
     void ShutdownServ(Seconds time, uint8 exitcode, const std::string_view reason = {});
     void ShutdownCancel();
     void ShutdownMsg(bool show = false, const std::string_view reason = {});
-    static uint8 GetExitCode() { return m_ExitCode; }
-    static void StopNow(uint8 exitcode) { m_stopEvent = true; m_ExitCode = exitcode; }
-    static bool IsStopped() { return m_stopEvent; }
+    static uint8 GetExitCode() { return _exitCode; }
+    static void StopNow(uint8 exitcode) { _stopEvent = true; _exitCode = exitcode; }
+    static bool IsStopped() { return _stopEvent; }
 
     void Update(Milliseconds diff);
     void UpdateSessions();
@@ -98,8 +98,8 @@ public:
 private:
     void _UpdateGameTime();
 
-    static std::atomic<bool> m_stopEvent;
-    static uint8 m_ExitCode;
+    static std::atomic<bool> _stopEvent;
+    static uint8 _exitCode;
     Seconds _shutdownTimer;
 
     bool m_isClosed;
