@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors 
+ * Copyright 2021 Craig Edwards and D++ contributors
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,6 +48,11 @@ role::~role()
 	if (image_data) {
 		delete image_data;
 	}
+}
+
+role& role::fill_from_json(nlohmann::json* j)
+{
+	return fill_from_json(0, j);
 }
 
 role& role::fill_from_json(snowflake _guild_id, nlohmann::json* j)
@@ -289,8 +294,8 @@ bool role::has_send_messages_in_threads() const {
 	return ((this->permissions & p_administrator) | (this->permissions & p_send_messages_in_threads));
 }
 
-bool role::has_start_embedded_activities() const {
-	return ((this->permissions & p_administrator) | (this->permissions & p_start_embedded_activities));
+bool role::has_use_embedded_activities() const {
+	return ((this->permissions & p_administrator) | (this->permissions & p_use_embedded_activities));
 }
 
 bool role::has_manage_events() const {

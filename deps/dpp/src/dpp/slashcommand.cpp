@@ -619,7 +619,7 @@ interaction_modal_response& interaction_modal_response::fill_from_json(nlohmann:
 	return *this;
 }
 
-std::string interaction_response::build_json() const {
+std::string interaction_response::build_json(bool with_id) const {
 	json j;
 	j["type"] = this->type;
 	if (this->autocomplete_choices.empty()) {
@@ -648,12 +648,15 @@ interaction_modal_response::interaction_modal_response() : interaction_response(
 	components.push_back({});
 }
 
-interaction_modal_response::interaction_modal_response(const std::string& _custom_id, const std::string& _title, const std::vector<component> _components) : interaction_response(ir_modal_dialog), current_row(0), custom_id(_custom_id), title(_title) {
+interaction_modal_response::interaction_modal_response(const std::string& _custom_id, const std::string& _title, const std::vector<component> _components) : 
+	interaction_response(ir_modal_dialog),
+	current_row(0), custom_id(_custom_id),
+	title(dpp::utility::utf8substr(_title, 0, 45)) {
 	// Default to one empty row
 	components.push_back(_components);
 }
 
-std::string interaction_modal_response::build_json() const {
+std::string interaction_modal_response::build_json(bool with_id) const {
 	json j;
 	j["type"] = this->type;
 	j["data"] = json::object();

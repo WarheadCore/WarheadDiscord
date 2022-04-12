@@ -25,20 +25,12 @@
 #include <queue>
 #include <map>
 #include <thread>
-#include <mutex>
+#include <shared_mutex>
 #include <vector>
 #include <functional>
 #include <condition_variable>
 
 namespace dpp {
-
-/**
- * @brief Encodes a url parameter similar to php urlencode()
- * 
- * @param value String to encode
- * @return * std::string URL encoded string
- */
-std::string url_encode(const std::string &value);
 
 /**
  * @brief Error values. Most of these are currently unused in https_client.
@@ -251,10 +243,10 @@ private:
 	class cluster* creator;
 
 	/** Inbound queue mutex thread safety */
-	std::mutex in_mutex;
+	std::shared_mutex in_mutex;
 
 	/** Outbound queue mutex thread safety */
-	std::mutex out_mutex;
+	std::shared_mutex out_mutex;
 
 	/** Inbound queue thread */
 	std::thread* in_thread;

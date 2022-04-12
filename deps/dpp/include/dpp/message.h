@@ -27,7 +27,8 @@
 #include <dpp/guild.h>
 #include <optional>
 #include <variant>
-#include <dpp/json_fwd.hpp>
+#include <dpp/nlohmann/json_fwd.hpp>
+#include <dpp/json_interface.h>
 
 namespace dpp {
 
@@ -74,7 +75,7 @@ enum component_style : uint8_t {
 /**
  * @brief An option for a select component
  */
-struct DPP_EXPORT select_option {
+struct DPP_EXPORT select_option : public json_interface<select_option> {
 	/**
 	 * @brief Label for option
 	 */
@@ -125,6 +126,11 @@ struct DPP_EXPORT select_option {
 	 * @brief Construct a new select option object
 	 */
 	select_option();
+
+	/**
+	 * @brief Destructs the select option object.
+	 */
+	virtual ~select_option() = default;
 
 	/**
 	 * @brief Construct a new select option object
@@ -184,6 +190,12 @@ struct DPP_EXPORT select_option {
 	 * @return select_option& reference to self for chaining
 	 */
 	select_option& set_animated(bool anim);
+
+	/** Read class values from json object
+	 * @param j A json object to read from
+	 * @return A reference to self
+	 */
+	select_option& fill_from_json(nlohmann::json* j);
 };
 
 /**
@@ -202,7 +214,7 @@ struct DPP_EXPORT select_option {
  * guilds. The beta is **closed**. When this feature is
  * released, then the functionality will work correctly.
  */
-class DPP_EXPORT component {
+class DPP_EXPORT component : public json_interface<component> {
 public:
 	/** Component type, either a button or action row
 	 */
@@ -236,7 +248,7 @@ public:
 	 */
 	std::string url;
 
-	/** Placeholder text for select menus and text inputs (max 100 characters)
+	/** Placeholder text for select menus and text inputs (max 150 characters)
 	 */
 	std::string placeholder;
 
@@ -270,7 +282,8 @@ public:
 	 */
 	bool required;
 
-	/** Current value (only filled or valid when populated from an on_form_submit event)
+	/** Value of the modal (filled or valid when populated from an
+	 * on_form_submit event, or from the set_value function)
 	 */
 	std::variant<std::monostate, std::string, int64_t, double> value;
 
@@ -306,7 +319,7 @@ public:
 
 	/** Destructor
 	 */
-	~component() = default;
+	virtual ~component() = default;
 
 	/**
 	 * @brief Set the type of the component. Button components
@@ -339,6 +352,16 @@ public:
 	 * @return component& Reference to self
 	 */
 	component& set_label(const std::string &label);
+
+	/**
+	 * @brief Set the default value of the text input component.
+	 * For action rows, this field is ignored. Setting the
+	 * value will auto-set the type to dpp::cot_text.
+	 *
+	 * @param value Value text to set. It will be truncated to the maximum length of 4000 UTF-8 characters.
+	 * @return component& Reference to self
+	 */
+	component& set_default_value(const std::string &val);
 
 	/**
 	 * @brief Set the url for dpp::cos_link types.
@@ -383,9 +406,20 @@ public:
 	component& set_disabled(bool disable);
 
 	/**
+	 * @brief Set if this component is required.
+	 * Defaults to false on all created components.
+	 *
+	 * @param require True to require this, false to make it optional.
+	 * @return component& Reference to self
+	 */
+	component& set_required(bool require);
+
+	/**
 	 * @brief Set the placeholder
 	 * 
-	 * @param placeholder placeholder string. It will be truncated to the maximum length of 100 UTF-8 characters.
+	 * @param placeholder placeholder string. It will be truncated to the
+	 * maximum length of 150 UTF-8 characters for select menus, and 100 UTF-8
+	 * characters for modals.
 	 * @return component& Reference to self
 	 */
 	component& set_placeholder(const std::string &placeholder);
@@ -609,7 +643,7 @@ struct DPP_EXPORT embed {
 
 	 /** Set the footer of the embed. Returns the embed itself so these method calls may be "chained"
 	  * @param text string to set as footer text. It will be truncated to the maximum length of 2048 UTF-8 characters.
-	  * @param icon_url url to set as footer icon url
+	  * @param icon_url an url to set as footer icon url
 	  * @return A reference to self
 	  */
 	embed& set_footer(const std::string& text, const std::string& icon_url);
@@ -786,7 +820,7 @@ enum sticker_format : uint8_t {
 /**
  * @brief Represents stickers received in messages
  */
-struct DPP_EXPORT sticker : public managed {
+struct DPP_EXPORT sticker : public managed, public json_interface<sticker> {
 	/** Optional: for standard stickers, id of the pack the sticker is from
 	 */
 	snowflake	pack_id;
@@ -827,6 +861,8 @@ struct DPP_EXPORT sticker : public managed {
 	 */
 	sticker();
 
+	virtual ~sticker() = default;
+
 	/** Read class values from json object
 	 * @param j A json object to read from
 	 * @return A reference to self
@@ -837,7 +873,15 @@ struct DPP_EXPORT sticker : public managed {
 	 * @param with_id True if the ID is to be set in the JSON structure
 	 * @return The JSON text of the invite
 	 */
-	std::string build_json(bool with_id = true) const;
+	virtual std::string build_json(bool with_id = true) const;
+
+	/**
+	 * @brief Get the sticker url
+	 *
+	 * @param accept_lottie Whether to allow that [lottie](https://airbnb.io/lottie/#/) (json format) can be returned or not
+	 * @return std::string The sticker url or an empty string when its a lottie and accept_lottie is false
+	 */
+	std::string get_url(bool accept_lottie = true) const;
 
 	/**
 	 * @brief Set the filename
@@ -860,7 +904,7 @@ struct DPP_EXPORT sticker : public managed {
 /**
  * @brief Represents a sticker pack (the built in groups of stickers that all nitro users get to use)
  */
-struct DPP_EXPORT sticker_pack : public managed {
+struct DPP_EXPORT sticker_pack : public managed, public json_interface<sticker_pack> {
 	/// the stickers in the pack
 	std::map<snowflake, sticker> stickers;
 	/// name of the sticker pack
@@ -879,6 +923,8 @@ struct DPP_EXPORT sticker_pack : public managed {
 	 */
 	sticker_pack();
 
+	virtual ~sticker_pack() = default;
+
 	/** Read class values from json object
 	 * @param j A json object to read from
 	 * @return A reference to self
@@ -889,7 +935,7 @@ struct DPP_EXPORT sticker_pack : public managed {
 	 * @param with_id True if the ID is to be set in the JSON structure
 	 * @return The JSON text of the invite
 	 */
-	std::string build_json(bool with_id = true) const;
+	virtual std::string build_json(bool with_id = true) const;
 
 };
 
@@ -954,17 +1000,17 @@ enum message_type {
 	/// Discovery grace period warning 2
 	mt_guild_discovery_grace_period_final_warning	= 17,
 	/// Thread Created 
-	mt_thread_created			= 18,
+	mt_thread_created				= 18,
 	/// Reply
 	mt_reply					= 19,
 	/// Application command
 	mt_application_command				= 20,
 	/// Thread starter message
-	mt_thread_starter_message	= 21,
+	mt_thread_starter_message			= 21,
 	/// Invite reminder
 	mt_guild_invite_reminder			= 22,
 	/// Context Menu Command
-	mt_context_menu_command 	= 23
+	mt_context_menu_command 			= 23
 };
 
 /**
@@ -1153,7 +1199,7 @@ struct DPP_EXPORT message : public managed {
 	/**
 	 * @brief Destroy the message object
 	 */
-	~message();
+	virtual ~message();
 
 	/**
 	 * @brief Construct a new message object with a channel and content

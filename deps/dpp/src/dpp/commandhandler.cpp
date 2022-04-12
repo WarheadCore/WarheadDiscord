@@ -160,7 +160,7 @@ commandhandler& commandhandler::register_commands()
 		if (callback.is_error()) {
 			this->owner->log(dpp::ll_error, "Failed to register global slash commands: " + callback.http_info.body);
 		}
-	});	
+	});
 	return *this;
 }
 
@@ -318,7 +318,7 @@ void commandhandler::route(const struct interaction_create_t & event)
 				/* Missing optional parameter, skip this */
 				continue;
 			}
-			
+
 			switch (p.second.type) {
 				case pt_string: {
 					std::string s = std::get<std::string>(slash_parameter);

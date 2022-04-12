@@ -6,8 +6,11 @@
 ![Lines of code](https://img.shields.io/tokei/lines/github/brainboxdotcc/DPP) 
 [![D++ CI](https://github.com/brainboxdotcc/DPP/actions/workflows/ci.yml/badge.svg)](https://github.com/brainboxdotcc/DPP/actions/workflows/ci.yml)
 
+D++ is a lightweight and efficient library for Discord written in modern C++. It is designed to cover as much of the API specification as possible and to have a incredibly small memory footprint, even when caching large amounts of data.
+
 ### Library features:
 
+* Support for Discord API v10
 * Really small memory footprint
 * Efficient caching system for guilds, channels, guild members, roles, users
 * Sharding and clustering (Many shards, one process: specify the number of shards, or let the library decide)
@@ -17,6 +20,7 @@
 * The entire Discord API is available for use in the library
 * Stable [Windows support](https://dpp.dev/buildwindows.html)
 * Ready-made compiled packages for Windows, Raspberry Pi (ARM64/ARM7/ARMv6), Debian x86/x64 and RPM based distributions
+* Highly scalable for large amounts of guilds and users
 
 Want to help? Drop me a line or send a PR.
 
@@ -27,6 +31,40 @@ This library is in use on [TriviaBot](https://triviabot.co.uk/) and [Sporks bot]
 The documentation is a work in progress, generated from the code comments and markdown using Doxygen.
 
 #### [View D++ library documentation](https://dpp.dev/)
+
+### Example
+
+This is a simple ping-pong example using slash commands.
+
+```c++
+#include <dpp/dpp.h>
+ 
+const std::string    BOT_TOKEN = "add your token here";
+const dpp::snowflake GUILD_ID  =  825407338755653642;
+ 
+int main() {
+    dpp::cluster bot(BOT_TOKEN);
+ 
+    bot.on_interaction_create([](const dpp::interaction_create_t& event) {
+         if (event.command.get_command_name() == "ping") {
+             event.reply("Pong!");
+         }
+    });
+ 
+    bot.on_ready([&bot](const dpp::ready_t& event) {
+        if (dpp::run_once<struct register_bot_commands>()) {
+            bot.guild_command_create(
+                dpp::slashcommand("ping", "Ping pong!", bot.me.id),
+                GUILD_ID
+            );
+        }
+    });
+ 
+    bot.start(false);
+}
+```
+
+You can find more examples in our [example page](https://dpp.dev/md_docpages_03_example_programs.html).
 
 ## Supported Systems
 
@@ -46,7 +84,7 @@ Please read the [D++ Code Style Guide](https://dpp.dev/coding-standards.html) fo
 
 ## 💬 Get in touch
 
-If you have various suggestions, questions or want to discuss things with our community, Join our discord server!
+If you have various suggestions, questions or want to discuss things with our community, [Join our discord server](https://discord.gg/dpp)!
 Make a humorous reference to brains in your nickname to get access to a secret brain cult channel! :)
 
 [![Discord](https://img.shields.io/discord/825407338755653642?style=flat)](https://discord.gg/dpp)
@@ -67,6 +105,7 @@ We love people's support in growing and improving. Be sure to leave a ⭐️ if 
 * AppleClang (12.0 or higher)
 * Microsoft Visual Studio 2019 or 2022 (16.x/17.x)
 * [mingw-w64](https://www.mingw-w64.org/) (gcc version 8 or higher)
+
 Other compilers may work (either newer versions of those listed above, or different compilers entirely) but have not been tested by us.
 
 ### External Dependencies (You must install these)
@@ -80,6 +119,5 @@ For voice support you require both of:
 
 ### Included Dependencies (Packaged with the library)
 * [nlohmann::json](https://github.com/nlohmann/json)
-* [fmt::format](https://github.com/fmt/format)
-* [cpp-httplib](https://github.com/yhirose/cpp-httplib)
+* [fmt::format](https://github.com/fmtlib/fmt)
 

@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors 
+ * Copyright 2021 Craig Edwards and D++ contributors
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,11 +30,13 @@ namespace dpp { namespace events {
 
 using namespace dpp;
 
+#ifndef _DOXYGEN_
 std::mutex protect_the_loot;
+#endif
 
 /**
  * @brief Handle event
- *
+ * 
  * @param client Websocket client (current shard)
  * @param j JSON data for the event
  * @param raw Raw JSON string

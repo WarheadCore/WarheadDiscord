@@ -25,7 +25,8 @@
 #include <dpp/managed.h>
 #include <dpp/utility.h>
 #include <dpp/user.h>
-#include <dpp/json_fwd.hpp>
+#include <dpp/nlohmann/json_fwd.hpp>
+#include <dpp/json_interface.h>
 
 namespace dpp {
 
@@ -87,7 +88,7 @@ public:
 /**
  * @brief The application class represents details of a bot application
  */
-class DPP_EXPORT application : public managed {
+class DPP_EXPORT application : public managed, public json_interface<application>  {
 public:
 	std::string		name;			//!< the name of the app
 	utility::iconhash	icon;			//!< the icon hash of the app (may be empty)
@@ -98,7 +99,7 @@ public:
 	std::string		terms_of_service_url;	//!< Optional: the url of the app's terms of service
 	std::string		privacy_policy_url;	//!< Optional: the url of the app's privacy policy
 	user			owner;			//!< Optional: partial user object containing info on the owner of the application
-	std::string		summary;		//!< if this application is a game sold on Discord, this field will be the summary field for the store page of its primary sku
+	std::string		summary;		//!< if this application is a game sold on Discord, this field will be the summary field for the store page of its primary sku @deprecated Removed by Discord
 	std::string		verify_key;		//!< the hex encoded key for verification in interactions and the GameSDK's GetTicket
 	app_team		team;			//!< if the application belongs to a team, this will be a list of the members of that team (may be empty)
 	snowflake		guild_id;		//!< Optional: if this application is a game sold on Discord, this field will be the guild to which it has been linked

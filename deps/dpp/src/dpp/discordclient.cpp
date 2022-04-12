@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors 
+ * Copyright 2021 Craig Edwards and D++ contributors
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -214,7 +214,7 @@ bool discord_client::handle_frame(const std::string &buffer)
 
 
 	json j;
-	
+
 	/**
 	 * This section parses the input frames from the websocket after they're decompressed.
 	 * Note that both ETF and JSON parsers return an nlohmann::json object, so that the rest
@@ -480,7 +480,7 @@ void discord_client::one_second_timer()
 		#else
 			::close(sfd);
 		#endif
-			
+
 			return;
 		}
 

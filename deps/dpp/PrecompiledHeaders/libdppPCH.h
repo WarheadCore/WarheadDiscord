@@ -19,7 +19,6 @@
 #include <dpp/discordevents.h>
 #include <dpp/export.h>
 #include <dpp/guild.h>
-#include <dpp/json_fwd.hpp>
 #include <dpp/nlohmann/json.hpp>
 #include <dpp/snowflake.h>
 #include <dpp/stringops.h>
