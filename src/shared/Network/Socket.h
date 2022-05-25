@@ -29,8 +29,6 @@
 
 using boost::asio::ip::tcp;
 
-constexpr auto READ_BLOCK_SIZE = 4096;
-
 #ifdef BOOST_ASIO_HAS_IOCP
 #define WH_SOCKET_USE_IOCP
 #endif

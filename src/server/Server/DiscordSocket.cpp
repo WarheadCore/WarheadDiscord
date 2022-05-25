@@ -34,7 +34,7 @@
 using boost::asio::ip::tcp;
 
 DiscordSocket::DiscordSocket(tcp::socket&& socket)
-    : Socket(std::move(socket)), _OverSpeedPings(0), _discordSession(nullptr), _authed(false), _sendBufferSize(4096)
+    : Socket(std::move(socket)), _OverSpeedPings(0), _discordSession(nullptr), _authed(false), _sendBufferSize(READ_BLOCK_SIZE)
 {
     _headerBuffer.Resize(sizeof(DiscordClientPktHeader));
 }

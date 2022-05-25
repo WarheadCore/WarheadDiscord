@@ -105,4 +105,6 @@ typedef std::uint32_t uint32;
 typedef std::uint16_t uint16;
 typedef std::uint8_t uint8;
 
+constexpr auto READ_BLOCK_SIZE = 4096;
+
 #endif // WARHEAD_DEFINE_H
