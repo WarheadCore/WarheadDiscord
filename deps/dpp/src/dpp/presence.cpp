@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors
+ * Copyright 2021 Craig Edwards and D++ contributors 
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -159,7 +159,7 @@ presence& presence::fill_from_json(nlohmann::json* j) {
 		}
 	}
 
-	if (j->find("status") != j->end()) {
+	if (j->contains("status")) {
 		flags &= PF_CLEAR_STATUS;
 		std::string main = string_not_null(j, "status");
 		if (main == "online")
@@ -171,7 +171,7 @@ presence& presence::fill_from_json(nlohmann::json* j) {
 	}
 
 
-	if (j->find("activities") != j->end()) {
+	if (j->contains("activities")) {
 		activities.clear();
 		for (auto & act : (*j)["activities"]) {
 			activity a;
@@ -244,7 +244,7 @@ std::string presence::build_json(bool with_id) const {
 	json j({
 
 		{"op", 3},
-		{"d",
+		{"d",	
 			{
 				{ "status", status_name_mapping[status()] },
 				{ "since", json::value_t::null },

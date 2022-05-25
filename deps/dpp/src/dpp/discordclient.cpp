@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors
+ * Copyright 2021 Craig Edwards and D++ contributors 
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -128,6 +128,7 @@ void discord_client::end_zlib()
 
 void discord_client::thread_run()
 {
+	utility::set_thread_name(std::string("shard/") + std::to_string(shard_id));
 	setup_zlib();
 	do {
 		bool error = false;
@@ -214,7 +215,7 @@ bool discord_client::handle_frame(const std::string &buffer)
 
 
 	json j;
-
+	
 	/**
 	 * This section parses the input frames from the websocket after they're decompressed.
 	 * Note that both ETF and JSON parsers return an nlohmann::json object, so that the rest
@@ -424,10 +425,11 @@ void discord_client::queue_message(const std::string &j, bool to_front)
 	}
 }
 
-void discord_client::clear_queue()
+discord_client& discord_client::clear_queue()
 {
 	std::lock_guard<std::mutex> locker(queue_mutex);
 	message_queue.clear();
+	return *this;
 }
 
 size_t discord_client::get_queue_size()
@@ -480,7 +482,7 @@ void discord_client::one_second_timer()
 		#else
 			::close(sfd);
 		#endif
-
+			
 			return;
 		}
 
@@ -567,7 +569,7 @@ uint64_t discord_client::get_channel_count() {
 	return total;
 }
 
-void discord_client::connect_voice(snowflake guild_id, snowflake channel_id, bool self_mute, bool self_deaf) {
+discord_client& discord_client::connect_voice(snowflake guild_id, snowflake channel_id, bool self_mute, bool self_deaf) {
 #ifdef HAVE_VOICE
 	std::lock_guard<std::mutex> lock(voice_mutex);
 	if (connecting_voice_channels.find(guild_id) == connecting_voice_channels.end()) {
@@ -590,6 +592,7 @@ void discord_client::connect_voice(snowflake guild_id, snowflake channel_id, boo
 		log(ll_debug, fmt::format("Requested the bot connect to voice channel {} on guild {}, but it seems we are already on this VC", channel_id, guild_id));
 	}
 #endif
+	return *this;
 }
 
 std::string discord_client::jsonobj_to_string(const nlohmann::json& json) {
@@ -625,8 +628,9 @@ void discord_client::disconnect_voice_internal(snowflake guild_id, bool emit_jso
 #endif
 }
 
-void discord_client::disconnect_voice(snowflake guild_id) {
+discord_client& discord_client::disconnect_voice(snowflake guild_id) {
 	disconnect_voice_internal(guild_id, true);
+	return *this;
 }
 
 voiceconn* discord_client::get_voice(snowflake guild_id) {
@@ -652,20 +656,19 @@ bool voiceconn::is_active() {
 	return voiceclient != nullptr;
 }
 
-void voiceconn::disconnect() {
+voiceconn& voiceconn::disconnect() {
 	if (this->is_active()) {
-		voiceclient->terminating = true;
-		voiceclient->close();
 		delete voiceclient;
 		voiceclient = nullptr;
 	}
+	return *this;
 }
 
 voiceconn::~voiceconn() {
 	this->disconnect();
 }
 
-void voiceconn::connect(snowflake guild_id) {
+voiceconn& voiceconn::connect(snowflake guild_id) {
 	if (this->is_ready() && !this->is_active()) {
 		/* This is wrapped in a thread because instantiating discord_voice_client can initiate a blocking SSL_connect() */
 		auto t = std::thread([guild_id, this]() {
@@ -681,6 +684,7 @@ void voiceconn::connect(snowflake guild_id) {
 		});
 		t.detach();
 	}
+	return *this;
 }
 
 

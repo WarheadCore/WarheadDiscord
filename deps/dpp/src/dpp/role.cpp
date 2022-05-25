@@ -2,7 +2,7 @@
  *
  * D++, A Lightweight C++ library for Discord
  *
- * Copyright 2021 Craig Edwards and D++ contributors
+ * Copyright 2021 Craig Edwards and D++ contributors 
  * (https://github.com/brainboxdotcc/DPP/graphs/contributors)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,7 +68,7 @@ role& role::fill_from_json(snowflake _guild_id, nlohmann::json* j)
 	this->flags |= bool_not_null(j, "hoist") ? dpp::r_hoist : 0;
 	this->flags |= bool_not_null(j, "managed") ? dpp::r_managed : 0;
 	this->flags |= bool_not_null(j, "mentionable") ? dpp::r_mentionable : 0;
-	if (j->find("tags") != j->end()) {
+	if (j->contains("tags")) {
 		auto t = (*j)["tags"];
 		/* This is broken on the Discord API.
 		 * Confirmed 25/11/2021, by quin#3017. If the value exists

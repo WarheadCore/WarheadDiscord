@@ -127,7 +127,7 @@ scheduled_event& scheduled_event::fill_from_json(const json* j) {
 	if (i != j->end()) {
 		set_string_not_null(&((*j)["entity_metadata"]), "location", this->entity_metadata.location);
 	}
-	if (j->find("creator") != j->end()) {
+	if (j->contains("creator")) {
 		json u = (*j)["creator"];
 		creator.fill_from_json(&u);
 	}
@@ -135,7 +135,7 @@ scheduled_event& scheduled_event::fill_from_json(const json* j) {
 	return *this;
 }
 
-std::string const scheduled_event::build_json(bool with_id) const {
+std::string scheduled_event::build_json(bool with_id) const {
 	json j;
 	if (this->id && with_id) {
 		j["id"] = std::to_string(id);

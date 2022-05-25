@@ -44,6 +44,10 @@
 	#define pclose _pclose
 #endif
 
+#ifdef HAVE_PRCTL
+	#include <sys/prctl.h>
+#endif
+
 using namespace std::literals;
 
 namespace dpp {
@@ -104,7 +108,7 @@ namespace dpp {
 			secs = (uint8_t)(diff % 60);
 		}
 
-		std::string uptime::to_string() {
+		std::string uptime::to_string() const {
 			if (hours == 0 && days == 0) {
 				return fmt::format("{:02d}:{:02d}", mins, secs);
 			} else {
@@ -112,16 +116,20 @@ namespace dpp {
 			}
 		}
 
-		uint64_t uptime::to_secs() {
+		uint64_t uptime::to_secs() const {
 			return secs + (mins * 60) + (hours * 60 * 60) + (days * 60 * 60 * 24);
 		}
 
-		uint64_t uptime::to_msecs() {
+		uint64_t uptime::to_msecs() const {
 			return to_secs() * 1000;
 		}
 
-		iconhash::iconhash() : first(0), second(0) {
+		iconhash::iconhash(uint64_t _first, uint64_t _second) : first(_first), second(_second) {
 		}
+
+		iconhash::iconhash(const iconhash&) = default;
+
+		iconhash::~iconhash() = default;
 
 		void iconhash::set(const std::string &hash) {
 			std::string clean_hash(hash);
@@ -148,6 +156,10 @@ namespace dpp {
 		iconhash& iconhash::operator=(const std::string &assignment) {
 			set(assignment);
 			return *this;
+		}
+
+		bool iconhash::operator==(const iconhash& other) const {
+			return other.first == first && other.second == second;
 		}
 
 		std::string iconhash::to_string() const {
@@ -207,6 +219,7 @@ namespace dpp {
 
 		void exec(const std::string& cmd, std::vector<std::string> parameters, cmd_result_t callback) {
 			auto t = std::thread([cmd, parameters, callback]() {
+				utility::set_thread_name("async_exec");
 				std::array<char, 128> buffer;
 				std::vector<std::string> my_parameters = parameters;
 				std::string result;
@@ -467,6 +480,16 @@ namespace dpp {
 
 		std::string version() {
 			return DPP_VERSION_TEXT;
+		}
+
+		void set_thread_name(const std::string& name) {
+			#ifdef HAVE_PRCTL
+				prctl(PR_SET_NAME, reinterpret_cast<unsigned long>(name.substr(0, 15).c_str()), NULL, NULL, NULL);
+			#else
+				#if HAVE_PTHREAD_SETNAME_NP
+					pthread_setname_np(name.substr(0, 15).c_str());
+				#endif
+			#endif
 		}
 	};
 

@@ -58,11 +58,11 @@ application& application::fill_from_json(nlohmann::json* j) {
 		cover_image = ci;
 	}
 	set_int32_not_null(j, "flags", flags);
-	if (j->at("team")) {
+	if (j->contains("team")) {
 		json& t = (*j)["team"];
 		std::string i = string_not_null(&t, "icon");
 		if (!i.empty()) {
-			icon = i;
+			this->team.icon = i;
 		}
 		set_snowflake_not_null(&t, "id", this->team.id);
 		set_string_not_null(&t, "name", this->team.name);
@@ -77,6 +77,32 @@ application& application::fill_from_json(nlohmann::json* j) {
 		}
 	}
 	return *this;
+}
+
+std::string application::get_cover_image_url(uint16_t size) const {
+	if (!this->cover_image.to_string().empty()) {
+		return fmt::format("{}/app-icons/{}/{}.png{}",
+						   utility::cdn_host,
+						   this->id,
+						   this->cover_image.to_string(),
+						   utility::avatar_size(size)
+		);
+	} else {
+		return std::string();
+	}
+}
+
+std::string application::get_icon_url(uint16_t size) const {
+	if (!this->icon.to_string().empty()) {
+		return fmt::format("{}/app-icons/{}/{}.png{}",
+						   utility::cdn_host,
+						   this->id,
+						   this->icon.to_string(),
+						   utility::avatar_size(size)
+		);
+	} else {
+		return std::string();
+	}
 }
 
 };

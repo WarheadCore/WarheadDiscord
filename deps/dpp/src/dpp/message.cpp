@@ -50,7 +50,7 @@ component& component::fill_from_json(nlohmann::json* j) {
 		for (json sub_component : (*j)["components"]) {
 			dpp::component new_component;
 			new_component.fill_from_json(&sub_component);
-			components.emplace_back(new_component);
+			components.emplace_back(new_component); 
 		}
 	} else if (type == cot_button) {
 		label = string_not_null(j, "label");
@@ -496,6 +496,16 @@ message& message::set_content(const std::string &c)
 	return *this;
 }
 
+message& message::set_channel_id(snowflake _channel_id) {
+	channel_id = _channel_id;
+	return *this;
+}
+
+message& message::set_guild_id(snowflake _guild_id) {
+	guild_id = _guild_id;
+	return *this;
+}
+
 message::message(const std::string &_content, message_type t) : message() {
 	content = utility::utf8substr(_content, 0, 2000);
 	type = t;
@@ -513,7 +523,7 @@ embed::embed(json* j) : embed() {
 	url = string_not_null(j, "url");
 	timestamp = ts_not_null(j, "timestamp");
 	color = int32_not_null(j, "color");
-	if (j->find("footer") != j->end()) {
+	if (j->contains("footer")) {
 		dpp::embed_footer f;
 		json& fj = (*j)["footer"];
 		f.text = string_not_null(&fj, "text");
@@ -523,7 +533,7 @@ embed::embed(json* j) : embed() {
 	}
 	std::vector<std::string> type_list = { "image", "video", "thumbnail" };
 	for (auto& s : type_list) {
-		if (j->find(s) != j->end()) {
+		if (j->contains(s)) {
 			embed_image curr;
 			json& fi = (*j)[s];
 			curr.url = string_not_null(&fi, "url");
@@ -539,14 +549,14 @@ embed::embed(json* j) : embed() {
 			}
 		}
 	}
-	if (j->find("provider") != j->end()) {
+	if (j->contains("provider")) {
 		json &p = (*j)["provider"];
 		dpp::embed_provider pr;
 		pr.name = string_not_null(&p, "name");
 		pr.url = string_not_null(&p, "url");
 		provider = pr;
 	}
-	if (j->find("author") != j->end()) {
+	if (j->contains("author")) {
 		json &a = (*j)["author"];
 		dpp::embed_author au;
 		au.name = string_not_null(&a, "name");
@@ -555,7 +565,7 @@ embed::embed(json* j) : embed() {
 		au.proxy_icon_url = string_not_null(&a, "proxy_icon_url");
 		author = au;
 	}
-	if (j->find("fields") != j->end()) {
+	if (j->contains("fields")) {
 		json &fl = (*j)["fields"];
 		for (auto & field : fl) {
 			embed_field f;
@@ -691,7 +701,7 @@ reaction::reaction(json* j) {
 	emoji_name = string_not_null(&emoji, "name");
 }
 
-attachment::attachment(struct message* o)
+attachment::attachment(struct message* o) 
 	: id(0)
 	, size(0)
 	, width(0)
@@ -856,7 +866,10 @@ bool message::is_crossposted() const {
 
 bool message::is_crosspost() const {
 	return flags & m_is_crosspost;
+}
 
+bool message::is_dm() const {
+	return guild_id == 0;
 }
 
 bool message::suppress_embeds() const {
@@ -1043,7 +1056,7 @@ sticker& sticker::fill_from_json(nlohmann::json* j) {
 	this->format_type = static_cast<sticker_format>(int8_not_null(j, "format_type"));
 	this->available = bool_not_null(j, "available");
 	this->sort_value = int8_not_null(j, "sort_value");
-	if (j->find("user") != j->end()) {
+	if (j->contains("user")) {
 		sticker_user.fill_from_json(&((*j)["user"]));
 	}
 
@@ -1086,7 +1099,7 @@ sticker_pack& sticker_pack::fill_from_json(nlohmann::json* j) {
 	this->banner_asset_id = snowflake_not_null(j, "banner_asset_id");
 	this->name = string_not_null(j, "name");
 	this->description = string_not_null(j, "description");
-	if (j->find("stickers") != j->end()) {
+	if (j->contains("stickers")) {
 		json & sl = (*j)["stickers"];
 		for (auto& s : sl) {
 			this->stickers[snowflake_not_null(&s, "id")] = sticker().fill_from_json(&s);
