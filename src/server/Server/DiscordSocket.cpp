@@ -92,8 +92,9 @@ bool DiscordSocket::Update()
         DiscordServerPktHeader header(queued->size() + sizeof(queued->GetOpcode()), queued->GetOpcode());
         if (buffer.GetRemainingSpace() < queued->size() + header.GetHeaderLength())
         {
-            QueuePacket(std::move(buffer));
-            //buffer.Resize(_sendBufferSize);
+            MessageBuffer copyBuffer(buffer);
+            QueuePacket(std::move(copyBuffer));
+            buffer.Resize(_sendBufferSize);
         }
 
         if (buffer.GetRemainingSpace() >= queued->size() + header.GetHeaderLength())
@@ -102,7 +103,7 @@ bool DiscordSocket::Update()
             if (!queued->empty())
                 buffer.Write(queued->contents(), queued->size());
         }
-        else // single packet larger than 4096 bytes
+        else // single packet larger than READ_BLOCK_SIZE bytes
         {
             MessageBuffer packetBuffer(queued->size() + header.GetHeaderLength());
             packetBuffer.Write(header.header, header.GetHeaderLength());
@@ -141,17 +142,17 @@ void DiscordSocket::ReadHandler()
 
     while (packet.GetActiveSize() > 0)
     {
-        if (_headerBuffer.GetRemainingSpace() > 0)
+        if (_headerBuffer.HasRemainingSpace())
         {
             // need to receive the header
             std::size_t readHeaderSize = std::min(packet.GetActiveSize(), _headerBuffer.GetRemainingSpace());
             _headerBuffer.Write(packet.GetReadPointer(), readHeaderSize);
             packet.ReadCompleted(readHeaderSize);
 
-            if (_headerBuffer.GetRemainingSpace() > 0)
+            if (_headerBuffer.HasRemainingSpace())
             {
                 // Couldn't receive the whole header this time.
-                ASSERT(packet.GetActiveSize() == 0);
+                ASSERT(!packet.HasActiveSize());
                 break;
             }
 
@@ -164,17 +165,17 @@ void DiscordSocket::ReadHandler()
         }
 
         // We have full read header, now check the data payload
-        if (_packetBuffer.GetRemainingSpace() > 0)
+        if (_packetBuffer.HasRemainingSpace())
         {
             // need more data in the payload
             std::size_t readDataSize = std::min(packet.GetActiveSize(), _packetBuffer.GetRemainingSpace());
             _packetBuffer.Write(packet.GetReadPointer(), readDataSize);
             packet.ReadCompleted(readDataSize);
 
-            if (_packetBuffer.GetRemainingSpace() > 0)
+            if (_packetBuffer.HasRemainingSpace())
             {
                 // Couldn't receive the whole data this time.
-                ASSERT(packet.GetActiveSize() == 0);
+                ASSERT(!packet.HasActiveSize());
                 break;
             }
         }

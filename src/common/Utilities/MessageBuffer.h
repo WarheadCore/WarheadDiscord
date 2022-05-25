@@ -64,6 +64,8 @@ public:
     [[nodiscard]] size_type GetActiveSize() const { return _wpos - _rpos; }
     [[nodiscard]] size_type GetRemainingSpace() const { return _storage.size() - _wpos; }
     [[nodiscard]] size_type GetBufferSize() const { return _storage.size(); }
+    [[nodiscard]] bool HasActiveSize() const { return GetActiveSize() > 0; }
+    [[nodiscard]] bool HasRemainingSpace() const { return GetRemainingSpace() > 0; }
 
     // Discards inactive data
     void Normalize()
