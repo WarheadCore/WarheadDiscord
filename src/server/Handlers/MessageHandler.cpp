@@ -24,28 +24,36 @@
 
 void DiscordSession::HandleSendDiscordMessageOpcode(DiscordPackets::Message::SendDiscordMessage& packet)
 {
-    sDiscordBot->SendDefaultMessage(packet.ChannelID, packet.Context);
+    auto channelID = GetChannelID(packet.ChannelType);
+    if (!channelID)
+        return;
+
+    sDiscordBot->SendDefaultMessage(channelID, packet.Context);
 }
 
 void DiscordSession::HandleSendDiscordEmbedMessageOpcode(DiscordPackets::Message::SendDiscordEmbedMessage& packet)
 {
-    dpp::embed embed;
-    embed.set_color(packet.Color);
-    embed.set_title(packet.Title);
-    embed.set_description(packet.Description);
+    auto channelID = GetChannelID(packet.ChannelType);
+    if (!channelID)
+        return;
+
+    auto embed = std::make_shared<dpp::embed>();
+    embed->set_color(packet.Color);
+    embed->set_title(packet.Title);
+    embed->set_description(packet.Description);
 
     for (auto const& embedField : packet.EmbedFields)
     {
         if (!embedField.IsCorrectName())
-            LOG_ERROR("server", "> Incorrect size for embed name. Size {}. Context '{}'", embedField.Name.size(), embedField.Name);
+            LOG_ERROR("discord", "> Incorrect size for embed name. Size {}. Context '{}'", embedField.Name.size(), embedField.Name);
 
         if (!embedField.IsCorrectValue())
-            LOG_ERROR("server", "> Incorrect size for embed value. Size {}. Context '{}'", embedField.Value.size(), embedField.Value);
+            LOG_ERROR("discord", "> Incorrect size for embed value. Size {}. Context '{}'", embedField.Value.size(), embedField.Value);
 
-        embed.add_field(embedField.Name, embedField.Value, embedField.IsInline);
+        embed->add_field(embedField.Name, embedField.Value, embedField.IsInline);
     }
 
-    embed.set_timestamp(packet.Timestamp);
+    embed->set_timestamp(packet.Timestamp);
 
-    sDiscordBot->SendEmbedMessage(packet.ChannelID, &embed);
+    sDiscordBot->SendEmbedMessage(channelID, embed);
 }

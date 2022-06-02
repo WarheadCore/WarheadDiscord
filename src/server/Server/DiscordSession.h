@@ -51,14 +51,15 @@ namespace DiscordPackets
 class WH_SERVER_API DiscordSession
 {
 public:
-    DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock);
+    DiscordSession(uint32 id, int64 guidID, std::string&& name, DiscordChannelsList&& channels, std::shared_ptr<DiscordSocket> sock);
     ~DiscordSession();
 
     void SendPacket(DiscordPacket const* packet);
 
-    uint32 GetAccountId() const { return _accountId; }
-    std::string const& GetAccountName() const { return _accountName; }
-    std::string const& GetRemoteAddress() { return _address; }
+    inline uint32 GetAccountId() const { return _accountId; }
+    inline int64 GetGuildId() const { return _guildID; }
+    inline std::string const& GetAccountName() const { return _accountName; }
+    inline std::string const& GetRemoteAddress() { return _address; }
 
     void QueuePacket(DiscordPacket const& packet);
     bool Update();
@@ -105,6 +106,8 @@ private:
     AsyncCallbackProcessor<TransactionCallback> _transactionCallbacks;
     AsyncCallbackProcessor<SQLQueryHolderCallback> _queryHolderProcessor;
 
+    int64 GetChannelID(uint8 channelType);
+
 private:
     // logging helper
     void LogUnexpectedOpcode(DiscordPacket* packet, char const* status, const char* reason);
@@ -113,9 +116,11 @@ private:
     std::shared_ptr<DiscordSocket> _socket;
     std::string _address;
     uint32 _accountId;
+    int64 _guildID;
     std::string _accountName;
     std::atomic<Microseconds> _latency;
     bool _kicked{ false };
+    DiscordChannelsList _channels;
     PacketQueue<DiscordPacket> _recvQueue;
 
     DiscordSession(DiscordSession const& right) = delete;

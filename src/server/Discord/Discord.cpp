@@ -16,6 +16,7 @@
  */
 
 #include "Discord.h"
+#include "AsyncCallbackMgr.h"
 #include "AccountMgr.h"
 #include "DatabaseEnv.h"
 #include "DiscordBot.h"
@@ -106,8 +107,8 @@ void Discord::AddSession(DiscordSession* session)
     }
 
     _sessions.emplace(session->GetAccountId(), session);
-    session->SendAuthResponse(DiscordAuthResponseCodes::Ok);
     UpdateMaxSessionCounters();
+    session->SendAuthResponse(DiscordAuthResponseCodes::Ok);    
 }
 
 /// Initialize config values
@@ -148,6 +149,7 @@ void Discord::SetInitialDiscordSettings()
 
     // Start discord bot
     sDiscordBot->Start();
+    sDiscordBot->Test();
 
     std::string startupDuration = Warhead::Time::ToTimeString(sw.Elapsed(), sw.GetOutCount());
 
@@ -163,11 +165,15 @@ void Discord::Update(Milliseconds diff)
     sDiscordUpdateTime.Update(diff);
 
     {
-        /// <li> Handle session updates when the timer has passed
+        sAsyncCallbackMgr->ProcessReadyCallbacks();
+    }
+
+    {
         UpdateSessions();
     }
 
     sAccountMgr->Update();
+    sDiscordBot->Update(diff);
 
     _scheduler.Update(diff);
 }

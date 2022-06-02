@@ -22,6 +22,7 @@
 #include "CryptoRandom.h"
 #include "DatabaseEnv.h"
 #include "Discord.h"
+#include "DiscordBot.h"
 #include "DiscordPacketHeader.h"
 #include "DiscordSession.h"
 #include "DiscordSharedDefines.h"
@@ -225,7 +226,7 @@ struct AuthSession
     std::string CoreName;
     std::string CoreVersion;
     uint32 ModuleVersion{ 0 };
-    int64 ServerID;
+    int64 GuildID;
 };
 
 struct AccountInfo
@@ -241,6 +242,7 @@ struct AccountInfo
     Seconds UnBanDate{ 0s };
     bool IsBanned{ false };
     bool IsPermanentlyBanned{ false };
+    std::unique_ptr<boost::asio::ip::address> RemoteIpAddress;
 
     //             0         1           2               3                4             5               6
     // SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`
@@ -398,7 +400,7 @@ void DiscordSocket::HandleAuthSession(DiscordPacket& recvPacket)
     recvPacket >> authSession->CoreName;
     recvPacket >> authSession->CoreVersion;
     recvPacket >> authSession->ModuleVersion;
-    recvPacket >> authSession->ServerID;
+    recvPacket >> authSession->GuildID;
 
     // Get the account information from the database
     auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME);
@@ -419,25 +421,25 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
         return;
     }
 
-    AccountInfo account(result->Fetch());
+    auto account = std::make_shared<AccountInfo>(result->Fetch());
 
     // For hook purposes, we get Remoteaddress at this point.
-    std::string address = GetRemoteIpAddress().to_string();
+    account->RemoteIpAddress = std::make_unique<boost::asio::ip::address>(GetRemoteIpAddress());
 
-    if (account.IsPermanentlyBanned)
+    if (account->IsPermanentlyBanned)
     {
         SendAuthResponseError(DiscordAuthResponseCodes::BannedPermanentlyAccount);
         LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedPermanentlyAccount' (Account {} permanently banned).", authSession->Account);
         DelayedCloseSocket();
-        sBanMgr->AddAccount(authSession->Account, BanInfo(0s, account.BanDate));
+        sBanMgr->AddAccount(authSession->Account, BanInfo(0s, account->BanDate));
         return;
     }
-    else if (account.IsBanned)
+    else if (account->IsBanned)
     {
         SendAuthResponseError(DiscordAuthResponseCodes::BannedAccount);
         LOG_ERROR("network", "DiscordSocket::CheckIpCallback: Sent Auth Response 'BannedAccount' (Account {} banned).", authSession->Account);
         DelayedCloseSocket();
-        sBanMgr->AddAccount(authSession->Account, BanInfo(account.UnBanDate - GameTime::GetGameTime(), account.BanDate));
+        sBanMgr->AddAccount(authSession->Account, BanInfo(account->UnBanDate - GameTime::GetGameTime(), account->BanDate));
         return;
     }
 
@@ -450,7 +452,7 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
         return;
     }
 
-    if (!account.CheckKey(authSession->Account, authSession->Key))
+    if (!account->CheckKey(authSession->Account, authSession->Key))
     {
         SendAuthResponseError(DiscordAuthResponseCodes::IncorrectKey);
         LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (incorrect key).");
@@ -458,18 +460,48 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
         return;
     }
 
-    if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(address))
+    if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(account->RemoteIpAddress->to_string()))
         _ipCountry = location->CountryCode;
 
-    LOG_INFO("network", "DiscordSocket::HandleAuthSession: Client '{}' authenticated successfully from {}.", authSession->Account, address);
+    sDiscordBot->CheckBotInGuild(authSession->GuildID, [this, authSession, account](bool isExist)
+    {
+        if (!isExist)
+        {
+            SendAuthResponseError(DiscordAuthResponseCodes::BotNotFound);
+            LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (bot not found).");
+            DelayedCloseSocket();
+            return;
+        }
 
-    _authed = true;
+        sDiscordBot->CheckChannels(authSession->GuildID, [this, authSession, account](DiscordChannelsList&& channelList)
+        {
+            if (channelList.empty())
+            {
+                SendAuthResponseError(DiscordAuthResponseCodes::ChannelsNotFound);
+                LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (channels not found).");
+                DelayedCloseSocket();
+                return;
+            }
 
-    _discordSession = new DiscordSession(account.ID, std::move(authSession->Account), shared_from_this());
+            if (channelList.size() != DEFAULT_CHANNELS_COUNT)
+            {
+                SendAuthResponseError(DiscordAuthResponseCodes::ChannelsIncorrect);
+                LOG_ERROR("network", "DiscordSocket::HandleAuthSession: Sent Auth Response (channels incorrect).");
+                DelayedCloseSocket();
+                return;
+            }
 
-    sDiscord->AddSession(_discordSession);
+            LOG_INFO("network", "DiscordSocket::HandleAuthSession: Client '{}' authenticated successfully from {}", authSession->Account, account->RemoteIpAddress->to_string());
 
-    AsyncRead();
+            _authed = true;
+
+            _discordSession = new DiscordSession(account->ID, authSession->GuildID, std::move(authSession->Account), std::move(channelList), shared_from_this());
+
+            sDiscord->AddSession(_discordSession);
+
+            AsyncRead();
+        });
+    });
 }
 
 void DiscordSocket::SendAuthResponseError(DiscordAuthResponseCodes code)

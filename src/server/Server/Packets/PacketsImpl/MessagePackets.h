@@ -30,7 +30,7 @@ namespace DiscordPackets::Message
 
         void Read() override;
 
-        int64 ChannelID{ 0 };
+        uint8 ChannelType{ 0 };
         std::string Context;
     };
 
@@ -41,7 +41,7 @@ namespace DiscordPackets::Message
 
         void Read() override;
 
-        int64 ChannelID{ 0 };
+        uint8 ChannelType{ 0 };
         uint32 Color{ 0 };
         std::string Title;
         std::string Description;

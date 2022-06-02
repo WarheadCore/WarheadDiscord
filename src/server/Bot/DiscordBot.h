@@ -19,14 +19,33 @@
 #define _DISCORD_BOT_H_
 
 #include "Define.h"
+#include "DiscordSharedDefines.h"
+#include "Duration.h"
 #include <memory>
-#include <string_view>
+#include <functional>
+#include <unordered_map>
+
+using CompleteFunction = std::function<void(bool)>;
+using CompleteChannelFunction = std::function<void(DiscordChannelsList&&)>;
 
 namespace dpp
 {
     class cluster;
     struct embed;
 }
+
+class TaskScheduler;
+
+struct DiscordClients
+{
+    DiscordClients(int64 guildID, std::string_view guildName, uint32 membersCount, Seconds inviteDate) :
+        GuildID(guildID), GuildName(guildName), MembersCount(membersCount), InviteDate(inviteDate) { }
+
+    int64 GuildID{ 0 };
+    std::string GuildName;
+    uint32 MembersCount{ 0 };
+    Seconds InviteDate{ 0 };
+};
 
 class WH_SERVER_API DiscordBot
 {
@@ -42,18 +61,41 @@ public:
     static DiscordBot* instance();
 
     void SendDefaultMessage(int64 channelID, std::string_view message);
-    void SendEmbedMessage(int64 channelID, dpp::embed const* embed);
+    void SendEmbedMessage(int64 channelID, std::shared_ptr<dpp::embed> embed);
 
     void Start();
+    void Test();
+    void Update(Milliseconds diff);
+
+    // Guid check
+    void CheckBotInGuild(int64 guildID, CompleteFunction&& execute);
+    void CheckChannels(int64 guildID, CompleteChannelFunction&& channelList);
 
 private:
     void ConfigureLogs();
     void ConfigureCommands();
+    void ConfigureGuildInviteHooks();
+    void LoadClients();
+    void CheckClients();
+
+    // Clients cache
+    bool HasClient(int64 guildID);
+    DiscordClients* GetClient(int64 guildID);
+    void AddClient(int64 guildID, std::string_view guildName, uint32 membersCount, Seconds inviteDate, bool atStartup = false);
+    void DeleteClient(int64 guildID);
+    void DeleteAllClients();
+
+    // Logs
+    void LogAddClient(int64 guildID, DiscordMessageColor color, std::string_view icon, std::string_view guildName, uint32 membersCount, double creationDate);
+    void LogDeleteClient(int64 guildID, DiscordMessageColor color, std::string_view icon, std::string_view guildName);
 
     bool _isEnable{ false };
     int64 _warheadServerID{ 0 };
 
     std::unique_ptr<dpp::cluster> _bot;
+    std::unique_ptr<TaskScheduler> _scheduler;
+
+    std::unordered_map<int64, DiscordClients> _guilds;
 };
 
 #define sDiscordBot DiscordBot::instance()

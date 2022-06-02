@@ -29,9 +29,11 @@
 constexpr auto MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;
 
 /// DiscordSession constructor
-DiscordSession::DiscordSession(uint32 id, std::string&& name, std::shared_ptr<DiscordSocket> sock) :
+DiscordSession::DiscordSession(uint32 id, int64 guidID, std::string&& name, DiscordChannelsList&& channels, std::shared_ptr<DiscordSocket> sock) :
     _socket(sock),
     _accountId(id),
+    _guildID(guidID),
+    _channels(std::move(channels)),
     _accountName(std::move(name)),
     _latency(0us)
 {
@@ -204,4 +206,15 @@ TransactionCallback& DiscordSession::AddTransactionCallback(TransactionCallback&
 SQLQueryHolderCallback& DiscordSession::AddQueryHolderCallback(SQLQueryHolderCallback&& callback)
 {
     return _queryHolderProcessor.AddCallback(std::move(callback));
+}
+
+int64 DiscordSession::GetChannelID(uint8 channelType)
+{
+    if (_channels.empty() || _channels.size() > channelType || channelType >= static_cast<uint8>(DiscordChannelType::MaxType))
+    {
+        LOG_ERROR("discord", "> Incorrect channel type {}. Account {}. IP {}", channelType, _accountName, _address);
+        return 0;
+    }
+
+    return _channels.at(channelType);
 }

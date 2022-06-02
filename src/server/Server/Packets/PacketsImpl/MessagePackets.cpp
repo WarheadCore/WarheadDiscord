@@ -20,13 +20,13 @@
 
 void DiscordPackets::Message::SendDiscordMessage::Read()
 {
-    _worldPacket >> ChannelID;
+    _worldPacket >> ChannelType;
     _worldPacket >> Context;
 }
 
 void DiscordPackets::Message::SendDiscordEmbedMessage::Read()
 {
-    _worldPacket >> ChannelID;
+    _worldPacket >> ChannelType;
     _worldPacket >> Color;
     _worldPacket >> Title;
     _worldPacket >> Description;
