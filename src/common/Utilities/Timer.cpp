@@ -28,6 +28,7 @@ namespace Warhead::TimeDiff // in us
     constexpr uint64 MINUTES = 60 * SECONDS;
     constexpr uint64 HOURS = 60 * MINUTES;
     constexpr uint64 DAYS = 24 * HOURS;
+    constexpr uint64 YEARS = 365 * DAYS;
 }
 
 std::string Warhead::Time::ToTimeString(Microseconds durationTime, uint8 outCount /*= 3*/, TimeFormat timeFormat /*= TimeFormat::ShortText*/)
@@ -37,7 +38,8 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, uint8 outCoun
     uint64 secs = (durationTime.count() / TimeDiff::SECONDS) % 60;
     uint64 minutes = (durationTime.count() / TimeDiff::MINUTES) % 60;
     uint64 hours = (durationTime.count() / TimeDiff::HOURS) % 24;
-    uint64 days = durationTime.count() / TimeDiff::DAYS;
+    uint64 days = durationTime.count() / TimeDiff::DAYS % 365;
+    uint64 years = durationTime.count() / TimeDiff::YEARS;
 
     std::string out;
     uint8 count = 0;
@@ -60,6 +62,9 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, uint8 outCoun
 
             count++;
         };
+
+        if (years)
+            AddOutNumerlic(years);
 
         if (days)
             AddOutNumerlic(days);
@@ -107,6 +112,9 @@ std::string Warhead::Time::ToTimeString(Microseconds durationTime, uint8 outCoun
 
         count++;
     };
+
+    if (years)
+        AddOut(years, "y ", " Year ", " Years ");
 
     if (days)
         AddOut(days, "d ", " Day ", " Days ");
