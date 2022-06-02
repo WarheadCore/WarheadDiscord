@@ -17,8 +17,8 @@ add_library(warhead-compile-option-interface INTERFACE)
 set(CXX_EXTENSIONS OFF)
 
 # Enable support С++17
-set(CMAKE_CXX_STANDARD 17)
-message(STATUS "Enabled С++17 standard")
+set(CMAKE_CXX_STANDARD 20)
+message(STATUS "Enabled С++20 standard")
 
 # An interface library to make the warnings level available to other targets
 # This interface taget is set-up through the platform specific script
