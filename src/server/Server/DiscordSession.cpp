@@ -210,7 +210,7 @@ SQLQueryHolderCallback& DiscordSession::AddQueryHolderCallback(SQLQueryHolderCal
 
 int64 DiscordSession::GetChannelID(uint8 channelType)
 {
-    if (_channels.empty() || _channels.size() > channelType || channelType >= static_cast<uint8>(DiscordChannelType::MaxType))
+    if (_channels.empty() || channelType >= static_cast<uint8>(DiscordChannelType::MaxType))
     {
         LOG_ERROR("discord", "> Incorrect channel type {}. Account {}. IP {}", channelType, _accountName, _address);
         return 0;
