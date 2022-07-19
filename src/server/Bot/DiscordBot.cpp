@@ -183,7 +183,7 @@ void DiscordBot::CheckClients()
             }
 
             AddClient(guild.id, guild.name, guild.member_count, GameTime::GetGameTime(), true);
-            LogAddClient(guild.id, DiscordMessageColor::Orange, guild.name, guild.get_icon_url(), guild.member_count, guild.get_creation_time());
+            LogAddClient(guild.id, DiscordMessageColor::Orange, guild.get_icon_url(), guild.name, guild.member_count, guild.get_creation_time());
         }
 
         if (!_saveClientIds.empty())
