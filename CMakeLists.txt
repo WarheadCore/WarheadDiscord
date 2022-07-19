@@ -52,7 +52,6 @@ include(GroupSources)
 include(AutoCollect)
 include(ConfigInstall)
 include(DynamicLibInstall)
-include(PocoMacros)
 include(GenerateApplication)
 
 find_package(PCHSupport)

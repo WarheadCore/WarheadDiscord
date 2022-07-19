@@ -51,8 +51,7 @@ target_link_libraries(common
     threads
     utf8cpp
     sfmt
-    openssl
-    Poco::Foundation)
+    openssl)
 
 set_target_properties(common
   PROPERTIES
