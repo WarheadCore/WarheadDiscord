@@ -39,6 +39,9 @@ void DiscordDatabaseConnection::DoPrepareStatements()
     PrepareStatement(DISCORD_INS_IP_BAN, "INSERT INTO `ip_banned` (`ip`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`) VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP() + ?, ?, ?, 1)", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_UPD_ACCOUNT_BAN_EXPIRED, "UPDATE `account_banned` SET `active` = 0 WHERE `unbandate` <= UNIX_TIMESTAMP() AND `unbandate` <> `bandate`", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_UPD_ACCOUNT_BAN_EXPIRED, "UPDATE `ip_banned` SET `active` = 0 WHERE `unbandate` <= UNIX_TIMESTAMP() AND `unbandate` <> `bandate`", CONNECTION_ASYNC);
+
+    // Clients
+    PrepareStatement(DISCORD_INS_CLIENT, "INSERT INTO `clients` (`GuildID`, `GuildName`, `MembersCount`, `InviteDate`, `AddedAtStartup`) VALUES (?, ?, ?, FROM_UNIXTIME(?), ?)", CONNECTION_ASYNC);
 }
 
 DiscordDatabaseConnection::DiscordDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

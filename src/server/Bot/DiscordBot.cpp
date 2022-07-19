@@ -790,8 +790,9 @@ void DiscordBot::AddClient(int64 guildID, std::string_view guildName, uint32 mem
     _guilds.emplace(guildID, DiscordClients(guildID, guildName, membersCount, inviteDate));
 
     // Add to DB
-    DiscordDatabase.Execute("INSERT INTO `clients` (`GuildID`, `GuildName`, `MembersCount`, `InviteDate`, `AddedAtStartup`) VALUES ({}, '{}', {}, FROM_UNIXTIME({}), {})",
-        guildID, guildName, membersCount, inviteDate.count(), atStartup ? 1 : 0);
+    auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_INS_CLIENT);
+    stmt->SetArguments(guildID, guildName, membersCount, inviteDate.count(), atStartup ? 1 : 0);
+    DiscordDatabase.Execute(stmt);
 }
 
 void DiscordBot::DeleteClient(int64 guildID)
