@@ -18,6 +18,7 @@
 #include "DiscordBot.h"
 #include "AsyncCallbackMgr.h"
 #include "AccountMgr.h"
+#include "ChatCommandHandler.h"
 #include "DatabaseEnv.h"
 #include "Discord.h"
 #include "DiscordConfig.h"
@@ -49,11 +50,15 @@ namespace
     constexpr auto CHANNEL_NAME_LOGIN_ADMIN = "login-admin";
 
     // Owner
-    constexpr auto OWNER_ID = 365169287926906883; // Winfidonarleyan | <@!365169287926906883>
-    constexpr auto OWNER_MENTION = "<@!365169287926906883>";
+    constexpr auto OWNER_ID = 365169287926906883; // Winfidonarleyan | <@365169287926906883>
+    constexpr auto OWNER_MENTION = "<@365169287926906883>";
 
-    // Logs
-    constexpr auto LOGS_CHANNEL_ID = 981628140772270160;
+    // Warhead guild
+    constexpr auto WARHEAD_GUILD_ID = 572275951879192588;
+    constexpr auto LOGS_CHANNEL_GUILD_ADD_ID = 981904498991714324;
+    constexpr auto LOGS_CHANNEL_GUILD_DELETE_ID = 981904522546933760;
+    constexpr auto LOGS_CHANNEL_MEMBERS_UPDATE_ID = 981906826436173935;
+    constexpr auto LOGS_CHANNEL_OTHER_ID = 981628140772270160;
 
     constexpr DiscordChannelType GetDiscordChannelType(std::string_view channelName)
     {
@@ -126,14 +131,6 @@ void DiscordBot::Start()
         return;
     }
 
-    _warheadServerID = sDiscordConfig->GetOption<int64>("Discord.Guild.ID");
-    if (!_warheadServerID)
-    {
-        LOG_FATAL("discord", "> Empty guild id for discord. Disable system");
-        _isEnable = false;
-        return;
-    }
-
     _bot = std::make_unique<dpp::cluster>(botToken, dpp::i_all_intents);
     _scheduler = std::make_unique<TaskScheduler>();
 
@@ -143,10 +140,10 @@ void DiscordBot::Start()
     // Prepare logs
     ConfigureLogs();
 
-    _bot->start(true);
-
     // Prepare commands
     ConfigureCommands();
+
+    _bot->start(true);
 
     // Prepare hooks
     CheckClients();
@@ -176,12 +173,11 @@ void DiscordBot::CheckClients()
 
         for (auto const& [guildID, guild] : guilds)
         {
-            Seconds creationDate = Seconds(static_cast<uint32>(guild.get_creation_time()));
-
-            LOG_INFO("discord", "Guild: {}. Time: {}", guild.name, Warhead::Time::ToTimeString(GameTime::GetGameTime() - creationDate));
-
             if (HasClient(guildID))
             {
+                // Create commands for existing guild
+                CreateCommands(guildID);
+
                 std::erase(_saveClientIds, guildID);
                 continue;
             }
@@ -235,10 +231,12 @@ void DiscordBot::ConfigureLogs()
     if (!_isEnable)
         return;
 
-    _bot->on_ready([this]([[maybe_unused]] const auto& event)
+    _bot->on_ready([this](dpp::ready_t const&)
     {
         LOG_INFO("discord.bot", "> DiscordBot: Logged in as {}", _bot->me.username);
     });
+
+    //_bot->on_log(dpp::utility::cout_logger());
 
     _bot->on_log([](const dpp::log_t& event)
     {
@@ -273,49 +271,57 @@ void DiscordBot::ConfigureCommands()
     if (!_isEnable)
         return;
 
-    _bot->on_ready([this](const dpp::ready_t& /*event*/)
+    _bot->on_ready([this](dpp::ready_t const&)
     {
-        if (dpp::run_once<struct register_bot_commands>())
-        {
-            //dpp::slashcommand coreComand("core", "Категория команд для ядра сервера", _bot->me.id);
-            //dpp::slashcommand onlineComand("online", "Текущий онлайн сервера", _bot->me.id);
-            dpp::slashcommand accountComand("account", "Commands for accounts helpers", _bot->me.id);
-
-            //coreComand.add_option(dpp::command_option(dpp::co_sub_command, "info", "Общая информация о ядре и игровом мире"));
-            accountComand.add_option(dpp::command_option(dpp::co_sub_command, "create", "Create account for Warhead Discord"));
-
-            //_bot->guild_command_create(coreComand, _serverID);
-            //_bot->guild_command_create(onlineComand, _serverID);
-            _bot->guild_command_create(accountComand, _warheadServerID);
-        }
+        sCommandHandler->SetApplicaionID(_bot.get());
     });
 
-    _bot->on_interaction_create([](const dpp::interaction_create_t& event)
+    sCommandHandler->AddCommand("account-create", "Создать аккаунт",
     {
-        dpp::command_interaction cmdData = event.command.get_command_interaction();
+        {  dpp::command_option(dpp::co_string, "name", "Название аккаунта", true), {} },
 
-        if (event.command.get_command_name() == "account" && cmdData.options[0].name == "create")
         {
-            dpp::interaction_modal_response modal("accCreate", "Create account for Warhead Discord");
-            modal.add_component(
-                dpp::component().
-                set_label("Enter account name").
-                set_id("account").
-                set_type(dpp::cot_text).
-                set_placeholder("name").
-                set_min_length(4).
-                set_max_length(MAX_ACCOUNT_STR).
-                set_text_style(dpp::text_short));
-            event.dialog(modal);
+            dpp::command_option(dpp::co_string, "сore_name", "Название используемого ядра", true),
+            {
+                dpp::command_option_choice("WarheadCore", std::string("WarheadCore")),
+                dpp::command_option_choice("AzerothCore", std::string("AzerothCore"))
+            },
         }
-    });
-
-    _bot->on_form_submit([](const dpp::form_submit_t& event)
+    },
+    [this](dpp::slashcommand_t const& slashCommandEvent)
     {
-        auto const& value = std::get<std::string>(event.components[0].components[0].value);
+        dpp::command_interaction cmdData = slashCommandEvent.command.get_command_interaction();
+        if (cmdData.options.empty())
+            return;
+
+        auto const guildID = slashCommandEvent.command.guild_id;
+        auto const userID = slashCommandEvent.command.member.user_id;
+
+        LOG_DEBUG("discord", "> Using account create command. GuildID {}. UserID {}", guildID, userID);
+
+        std::string accountName = std::get<std::string>(cmdData.options[0].value);
+        std::string coreName = std::get<std::string>(cmdData.options[1].value);
+
+        dpp::message errorMessage;
+        errorMessage.set_flags(dpp::m_ephemeral);
+
+        if (guildID == WARHEAD_GUILD_ID && userID != OWNER_ID)
+        {
+            errorMessage.set_content("Вы не можете создать аккаунт в этой гильдии, пригласите бота на свой сервер и создайте аккаунт там");
+            slashCommandEvent.reply(errorMessage);
+            return;
+        }
+
+        if (HasClient(guildID) && userID != OWNER_ID)
+        {
+            errorMessage.set_content("Эмм, вы уже создали аккаунт для этой гильдии");
+            slashCommandEvent.reply(errorMessage);
+            return;
+        }
+
         std::string key = sAccountMgr->GetRandomKey();
 
-        auto result = sAccountMgr->CreateAccount(value, key);
+        auto result = sAccountMgr->CreateAccount(accountName, key, guildID);
         if (result != AccountResponceResult::Ok)
         {
             std::string errorMsg;
@@ -323,41 +329,114 @@ void DiscordBot::ConfigureCommands()
             switch (result)
             {
             case AccountResponceResult::LongName:
-                errorMsg = Warhead::StringFormat("Name of account is too big. Recommend max `'{}'` chars. You used `'{}'`", MAX_ACCOUNT_STR, value.size());
+                errorMsg = Warhead::StringFormat("Имя аккаунта слишком большое. Максимальная длина `{}`. Вы использовали `{}`", MAX_ACCOUNT_STR, accountName.length());
                 break;
             case AccountResponceResult::NameAlreadyExist:
-                errorMsg = Warhead::StringFormat("Name of account `'{}'` is exist. Try other", value);
+                errorMsg = Warhead::StringFormat("Аккаунт `{}` уже существует", accountName);
                 break;
             default:
-                errorMsg = "Unknown error";
+                errorMsg = "Неизвестная ошибка";
                 break;
             }
 
-            dpp::message m;
-            m.set_content(Warhead::StringFormat("Error at create. {}", errorMsg));
-            m.set_flags(dpp::m_ephemeral);
-
-            event.reply(m);
+            errorMessage.set_content(Warhead::StringFormat("Ошибка при создании аккаунта. {}", errorMsg));
+            slashCommandEvent.reply(errorMessage);
             return;
         }
 
-        dpp::embed embed = dpp::embed();
+        dpp::embed embed;
         embed.set_color(static_cast<uint32>(DiscordMessageColor::Teal));
-        embed.set_title("Create account for Warhead Discord");
-        embed.set_description(Warhead::StringFormat("You have successfully created an account: `{}`", value));
-        embed.add_field("You key", Warhead::StringFormat("`{}`", key));
+        embed.set_title("Создание аккаунта для Warhead Discord");
+        embed.set_description(Warhead::StringFormat("Вы успешно создали аккаунт: `{}`", accountName));
+        embed.add_field("Ваш ключ. Сохраните его!", Warhead::StringFormat("`{}`", key));
         embed.set_timestamp(GameTime::GetGameTime().count());
+        embed.set_footer(Warhead::StringFormat("Guild ID: {}. Guild locale: {}", guildID, slashCommandEvent.command.guild_locale), "");
 
         dpp::message message;
         message.add_embed(embed);
         message.set_flags(dpp::m_ephemeral);
-        event.reply(message);
+        slashCommandEvent.reply(message);
+    });
+
+    sCommandHandler->AddCommand("account-key-generate", "Создать новый ключ",
+    {
+        {  dpp::command_option(dpp::co_string, "name", "Название аккаунта", true), {} },
+    },
+    [this](dpp::slashcommand_t const& slashCommandEvent)
+    {
+        dpp::command_interaction cmdData = slashCommandEvent.command.get_command_interaction();
+        if (cmdData.options.empty())
+            return;
+
+        auto const guildID = slashCommandEvent.command.guild_id;
+        auto const userID = slashCommandEvent.command.member.user_id;
+
+        LOG_DEBUG("discord", "> Using account key geneate command. GuildID {}. UserID {}", guildID, userID);
+
+        auto const& cmdOptions = cmdData.options;
+        if (cmdOptions.empty())
+            return;
+
+        dpp::message errorMessage;
+        //errorMessage.set_flags(dpp::m_ephemeral);
+
+        if (userID != OWNER_ID)
+        {
+            errorMessage.set_content("Что ты хотел сделать? Ахаха");
+            slashCommandEvent.reply(errorMessage);
+            return;
+        }
+
+        std::string accountName = std::get<std::string>(cmdOptions.at(0).value);
+
+        auto newKey = sAccountMgr->GetRandomKey();
+
+        auto result = sAccountMgr->ChangeKey(accountName, newKey);
+        if (result != AccountResponceResult::Ok)
+        {
+            std::string errorMsg;
+
+            switch (result)
+            {
+            case AccountResponceResult::LongKey:
+                errorMsg = Warhead::StringFormat("Ошибка при создании нового пароля");
+                break;
+            case AccountResponceResult::NameNotExist:
+                errorMsg = Warhead::StringFormat("Аккаунт `{}` не найден", accountName);
+                break;
+            default:
+                errorMsg = "Неизвестная ошибка";
+                break;
+            }
+
+            errorMessage.set_content(Warhead::StringFormat("Ошибка при генерации нового ключа для аккаунта. {}", errorMsg));
+            slashCommandEvent.reply(errorMessage);
+            return;
+        }
+
+        dpp::embed embed;
+        embed.set_color(static_cast<uint32>(DiscordMessageColor::Teal));
+        embed.set_title("Смена ключа для Warhead Discord");
+        embed.set_description(Warhead::StringFormat("Вы успешно изменили ключ для аккаунта: `{}`", accountName));
+        embed.add_field("Ваш ключ. Сохраните его!", Warhead::StringFormat("`{}`", newKey));
+        embed.set_timestamp(GameTime::GetGameTime().count());
+        embed.set_footer(Warhead::StringFormat("Guild ID: {}. Guild locale: {}", guildID, slashCommandEvent.command.guild_locale), "");
+
+        dpp::message message;
+        message.add_embed(embed);
+        message.set_flags(dpp::m_ephemeral);
+        slashCommandEvent.reply(message);
+    });
+
+    _bot->on_slashcommand([this](dpp::slashcommand_t const& event)
+    {
+        sCommandHandler->TryExecuteCommand(event);
     });
 }
 
 void DiscordBot::ConfigureGuildInviteHooks()
 {
-    _bot->on_guild_create([this](dpp::guild_create_t event)
+    _bot->on_guild_create([this](dpp::guild_create_t const& event)
     {
         if (HasClient(event.created->id))
             return;
@@ -370,7 +449,7 @@ void DiscordBot::ConfigureGuildInviteHooks()
             event.created->name, event.created->member_count, event.created->get_creation_time());
     });
 
-    _bot->on_guild_delete([this](dpp::guild_delete_t event)
+    _bot->on_guild_delete([this](dpp::guild_delete_t const& event)
     {
         if (!HasClient(event.deleted->id))
             return;
@@ -382,7 +461,7 @@ void DiscordBot::ConfigureGuildInviteHooks()
         LogDeleteClient(event.deleted->id, DiscordMessageColor::Indigo, event.deleted->get_icon_url(), event.deleted->name);
     });
 
-    _bot->on_guild_member_add([this](dpp::guild_member_add_t event)
+    _bot->on_guild_member_add([this](dpp::guild_member_add_t const& event)
     {
         if (event.is_cancelled())
             return;
@@ -395,9 +474,15 @@ void DiscordBot::ConfigureGuildInviteHooks()
             embedMessage->set_description(Warhead::StringFormat("{}, я увидел тебя в гильдии: {}", OWNER_MENTION, event.adding_guild->name));
             embedMessage->set_timestamp(GameTime::GetGameTime().count());
 
-            SendEmbedMessage(LOGS_CHANNEL_ID, embedMessage);
+            SendEmbedMessage(LOGS_CHANNEL_OTHER_ID, embedMessage);
         }
     });
+}
+
+void DiscordBot::CreateCommands(int64 guildID)
+{
+    LOG_DEBUG("discord", "> Create commands for guild id: {}", guildID);
+    sCommandHandler->RefisterCommandsForGuild(_bot.get(), guildID);
 }
 
 void DiscordBot::LoadClients()
@@ -426,11 +511,6 @@ void DiscordBot::LoadClients()
 
     LOG_INFO("discord", ">> Loaded {} clients in {}", _guilds.size(), sw);
     LOG_INFO("discord", "");
-
-    for (auto const& itr : _guilds)
-    {
-        LOG_INFO("discord", "> {}", itr.second.GuildName);
-    }
 }
 
 void DiscordBot::CheckBotInGuild(int64 guildID, CompleteFunction&& execute)
@@ -703,6 +783,9 @@ void DiscordBot::AddClient(int64 guildID, std::string_view guildName, uint32 mem
         return;
     }
 
+    // Create commands for this guild
+    CreateCommands(guildID);
+
     // Add in core cache
     _guilds.emplace(guildID, DiscordClients(guildID, guildName, membersCount, inviteDate));
 
@@ -751,7 +834,7 @@ void DiscordBot::LogAddClient(int64 guildID, DiscordMessageColor color, std::str
     embedMessage->add_field("Дата создания", Warhead::StringFormat("`{}` | `{}`", Warhead::Time::TimeToHumanReadable(timeCreate), Warhead::Time::ToTimeString(GameTime::GetGameTime() - timeCreate)));
     embedMessage->set_timestamp(GameTime::GetGameTime().count());
 
-    SendEmbedMessage(LOGS_CHANNEL_ID, embedMessage);
+    SendEmbedMessage(LOGS_CHANNEL_GUILD_ADD_ID, embedMessage);
 }
 
 void DiscordBot::LogDeleteClient(int64 guildID, DiscordMessageColor color, std::string_view icon, std::string_view guildName)
@@ -766,5 +849,5 @@ void DiscordBot::LogDeleteClient(int64 guildID, DiscordMessageColor color, std::
     embedMessage->add_field("Название", Warhead::StringFormat("`{}`", guildName));
     embedMessage->set_timestamp(GameTime::GetGameTime().count());
 
-    SendEmbedMessage(LOGS_CHANNEL_ID, embedMessage);
+    SendEmbedMessage(LOGS_CHANNEL_GUILD_DELETE_ID, embedMessage);
 }

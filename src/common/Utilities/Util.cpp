@@ -20,11 +20,32 @@
 #include "Errors.h"
 #include <algorithm>
 #include <string>
+#include <boost/core/demangle.hpp>
 #include <utf8.h>
+
+std::string GetLowerString(std::string_view str)
+{
+    std::string data{ str };
+    std::transform(data.begin(), data.end(), data.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+
+    return data;
+}
 
 bool StringEqualI(std::string_view a, std::string_view b)
 {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); });
+}
+
+bool StringContainsStringI(std::string_view haystack, std::string_view needle)
+{
+    return haystack.end() !=
+        std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); });
+}
+
+bool StringCompareLessI(std::string_view a, std::string_view b)
+{
+    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char c1, char c2) { return std::tolower(c1) < std::tolower(c2); });
 }
 
 std::string Warhead::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen, bool reverse /* = false */)
@@ -49,15 +70,6 @@ std::string Warhead::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen
     }
 
     return ss;
-}
-
-std::string GetLowerString(std::string_view str)
-{
-    std::string data{str};
-    std::transform(data.begin(), data.end(), data.begin(),
-        [](unsigned char c) { return std::tolower(c); });
-
-    return data;
 }
 
 void Warhead::Impl::HexStrToByteArray(std::string_view str, uint8* out, size_t outlen, bool reverse /*= false*/)
@@ -206,4 +218,9 @@ void utf8truncate(std::string& utf8str, size_t len)
     {
         utf8str.clear();
     }
+}
+
+std::string GetTypeName(std::type_info const& info)
+{
+    return boost::core::demangle(info.name());
 }

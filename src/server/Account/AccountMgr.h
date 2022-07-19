@@ -33,10 +33,11 @@ enum class AccountResponceResult : uint8;
 
 struct DiscordAccountInfo
 {
-    DiscordAccountInfo(uint32 id, std::string_view name, std::string_view realmName) :
-        ID(id), Name(std::string(name)), RealmName(std::string(realmName)) { }
+    DiscordAccountInfo(uint32 id, std::string_view name, int64 guildID, std::string_view realmName) :
+        ID(id), Name(name), GuildID(guildID), RealmName(realmName) { }
 
     uint32 ID{ 0 };
+    int64 GuildID{ 0 };
     std::string Name;
     std::string RealmName;
 };
@@ -51,7 +52,7 @@ public:
 
     void Update();
 
-    AccountResponceResult CreateAccount(std::string username, std::string key, std::string_view realmName = {});
+    AccountResponceResult CreateAccount(std::string username, std::string key, int64 guildID, std::string_view realmName = {});
     AccountResponceResult ChangeKey(std::string_view name, std::string newPassword);
     void CheckAccount(std::string_view accountName, std::function<void(uint32)>&& execute);
     uint32 GetID(std::string_view accountName);
@@ -59,8 +60,8 @@ public:
     std::string_view GetRealmName(uint32 id);
     std::string GetRandomKey();
 
-    void AddAccountInfo(DiscordAccountInfo info);
-    void AddAccountInfo(uint32 id, std::string_view name, std::string_view realmName);
+    void AddAccountInfo(DiscordAccountInfo&& info);
+    void AddAccountInfo(uint32 id, std::string_view name, int64 guildID, std::string_view realmName);
     inline auto GetAllAccountsInfo() { return &_accounts; }
 
     DiscordAccountInfo const* GetAccountInfo(uint32 id);

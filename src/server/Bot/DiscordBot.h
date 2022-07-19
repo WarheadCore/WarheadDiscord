@@ -31,10 +31,13 @@ using CompleteChannelFunction = std::function<void(DiscordChannelsList&&)>;
 namespace dpp
 {
     class cluster;
+    class slashcommand;
     struct embed;
+    struct command_option;
 }
 
 class TaskScheduler;
+class ChatHandler;
 
 struct DiscordClients
 {
@@ -78,6 +81,9 @@ private:
     void LoadClients();
     void CheckClients();
 
+    // For guild
+    void CreateCommands(int64 guildID);
+
     // Clients cache
     bool HasClient(int64 guildID);
     DiscordClients* GetClient(int64 guildID);
@@ -90,12 +96,15 @@ private:
     void LogDeleteClient(int64 guildID, DiscordMessageColor color, std::string_view icon, std::string_view guildName);
 
     bool _isEnable{ false };
-    int64 _warheadServerID{ 0 };
+
+    // Commands
+    static bool HandleAccountTestCommand(ChatHandler* handler);
 
     std::unique_ptr<dpp::cluster> _bot;
     std::unique_ptr<TaskScheduler> _scheduler;
 
     std::unordered_map<int64, DiscordClients> _guilds;
+    std::vector<std::string> _commands;
 };
 
 #define sDiscordBot DiscordBot::instance()

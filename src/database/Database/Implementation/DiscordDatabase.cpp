@@ -26,10 +26,10 @@ void DiscordDatabaseConnection::DoPrepareStatements()
     PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`, "
         "`ab`.`bandate`, `ab`.`unbandate` "
         "FROM `account` a LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1", CONNECTION_ASYNC);
-    PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO account (`Name`, `RealmName`, `Salt`, `Verifier`, `JoinDate`) VALUES (?, ?, ?, ?, NOW())", CONNECTION_ASYNC);
+    PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO account (`Name`, `Salt`, `Verifier`, `GuildID`, `RealmName`, `JoinDate`) VALUES (?, ?, ?, ?, ?, NOW())", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_SEL_IP_INFO, "SELECT unbandate > UNIX_TIMESTAMP() OR unbandate = bandate, unbandate = bandate FROM ip_banned WHERE ip = ?", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_SEL_ACCOUNT_ID_BY_USERNAME, "SELECT `ID` FROM `account` WHERE `Name` = ?", CONNECTION_ASYNC);
-    PrepareStatement(DISCORD_SEL_ACCOUNTS, "SELECT `ID`, `Name`, `RealmName` FROM account", CONNECTION_SYNCH);
+    PrepareStatement(DISCORD_SEL_ACCOUNTS, "SELECT `ID`, `Name`, `GuildID`, `RealmName` FROM account", CONNECTION_SYNCH);
     PrepareStatement(DISCORD_UPD_LOGON, "UPDATE `account` SET `Salt` = ?, `Verifier` = ? WHERE `ID` = ?", CONNECTION_ASYNC);
 
     // Ban manager

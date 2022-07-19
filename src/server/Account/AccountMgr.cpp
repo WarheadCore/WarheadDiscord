@@ -33,6 +33,8 @@
 
 void AccountMgr::Initialize()
 {
+    LOG_INFO("server.loading", "> Loading accounts...");
+
     StopWatch sw;
 
     _accounts.clear();
@@ -46,9 +48,8 @@ void AccountMgr::Initialize()
 
     do
     {
-        auto const& [id, name, realmName] = result->FetchTuple<uint32, std::string_view, std::string_view>();
-
-        AddAccountInfo(id, name, realmName);
+        auto const& [id, name, guildID, realmName] = result->FetchTuple<uint32, std::string_view, int64, std::string_view>();
+        AddAccountInfo(id, name, guildID, realmName);
     } while (result->NextRow());
 
     LOG_INFO("server.loading", "> Loaded {} accounts in {}", _accounts.size(), sw);
@@ -60,7 +61,7 @@ void AccountMgr::Update()
     _queryProcessor.ProcessReadyCallbacks();
 }
 
-void AccountMgr::AddAccountInfo(DiscordAccountInfo info)
+void AccountMgr::AddAccountInfo(DiscordAccountInfo&& info)
 {
     if (GetAccountInfo(info.ID))
     {
@@ -71,10 +72,9 @@ void AccountMgr::AddAccountInfo(DiscordAccountInfo info)
     _accounts.emplace(info.ID, std::move(info));
 }
 
-void AccountMgr::AddAccountInfo(uint32 id, std::string_view name, std::string_view realmName)
+void AccountMgr::AddAccountInfo(uint32 id, std::string_view name, int64 guildID, std::string_view realmName)
 {
-    DiscordAccountInfo info = DiscordAccountInfo(id, name, realmName);
-    AddAccountInfo(info);
+    AddAccountInfo(std::move(DiscordAccountInfo(id, name, guildID, realmName)));
 }
 
 DiscordAccountInfo const* AccountMgr::GetAccountInfo(uint32 id)
@@ -82,7 +82,7 @@ DiscordAccountInfo const* AccountMgr::GetAccountInfo(uint32 id)
     return Warhead::Containers::MapGetValuePtr(_accounts, id);
 }
 
-AccountResponceResult AccountMgr::CreateAccount(std::string username, std::string key, std::string_view realmName /*= {}*/)
+AccountResponceResult AccountMgr::CreateAccount(std::string username, std::string key, int64 guildID, std::string_view realmName /*= {}*/)
 {
     if (utf8length(username) > MAX_ACCOUNT_STR)
         return AccountResponceResult::LongName;
@@ -93,8 +93,6 @@ AccountResponceResult AccountMgr::CreateAccount(std::string username, std::strin
     Utf8ToUpperOnlyLatin(username);
     Utf8ToUpperOnlyLatin(key);
 
-    //std::lock_guard<std::mutex> guard(_mutex);
-
     if (GetID(username))
         return AccountResponceResult::NameAlreadyExist;
 
@@ -103,12 +101,12 @@ AccountResponceResult AccountMgr::CreateAccount(std::string username, std::strin
 
     auto const& [salt, verifier] = Warhead::Crypto::SRP6::MakeRegistrationData(username, key);
 
-    // "INSERT INTO account (`Name`, `RealmName`, `Salt`, `Verifier`, `JoinDate`) VALUES (?, ?, ?, NOW())"
+    // INSERT INTO account (`Name`, `Salt`, `Verifier`, `GuildID`, `RealmName`, `JoinDate`) VALUES (?, ?, ?, ?, ?, NOW())
     auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_INS_ACCOUNT);
-    stmt->SetArguments(username, realmName, salt, verifier);
+    stmt->SetArguments(username, salt, verifier, guildID, realmName);
     DiscordDatabase.Execute(stmt);
 
-    CheckAccount(username, [this, username, realmName](uint32 accountID)
+    CheckAccount(username, [this, username, guildID, realmName](uint32 accountID)
     {
         if (!accountID)
         {
@@ -116,7 +114,7 @@ AccountResponceResult AccountMgr::CreateAccount(std::string username, std::strin
             return;
         }
 
-        AddAccountInfo(accountID, username, realmName);
+        AddAccountInfo(accountID, username, guildID, realmName);
     });
 
     return AccountResponceResult::Ok;
@@ -125,7 +123,7 @@ AccountResponceResult AccountMgr::CreateAccount(std::string username, std::strin
 uint32 AccountMgr::GetID(std::string_view accountName)
 {
     for (auto const& [ID, info] : _accounts)
-        if (info.Name == accountName)
+        if (StringEqualI(info.Name, accountName))
             return ID;
 
     return 0;
@@ -154,8 +152,6 @@ void AccountMgr::CheckAccount(std::string_view accountName, std::function<void(u
     auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_SEL_ACCOUNT_ID_BY_USERNAME);
     stmt->SetArguments(accountName);
 
-    //std::lock_guard<std::mutex> guard(_mutex);
-
     _queryProcessor.AddCallback(DiscordDatabase.AsyncQuery(stmt).WithPreparedCallback([execute = std::move(execute)](PreparedQueryResult result)
     {
         if (!result)
@@ -171,17 +167,17 @@ void AccountMgr::CheckAccount(std::string_view accountName, std::function<void(u
 
 AccountResponceResult AccountMgr::ChangeKey(std::string_view name, std::string newPassword)
 {
-    std::string safeUser = std::string(name);
-    uint32 accountID = GetID(name);
+    std::string safeUser{ name };
+    Utf8ToUpperOnlyLatin(safeUser);
+    Utf8ToUpperOnlyLatin(newPassword);
+
+    uint32 accountID = GetID(safeUser);
 
     if (!accountID)
         return AccountResponceResult::NameNotExist;
 
     if (utf8length(newPassword) > MAX_PASS_STR)
         return AccountResponceResult::LongKey;
-
-    Utf8ToUpperOnlyLatin(safeUser);
-    Utf8ToUpperOnlyLatin(newPassword);
 
     auto [salt, verifier] = Warhead::Crypto::SRP6::MakeRegistrationData(safeUser, newPassword);
 
