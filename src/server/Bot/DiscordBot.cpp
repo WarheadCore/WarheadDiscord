@@ -633,7 +633,7 @@ void DiscordBot::CheckChannels(int64 guildID, CompleteChannelFunction&& execute)
             }
         };
 
-        DiscordChannelsList channelsList{};
+        DiscordChannelsList channelsList;
 
         try
         {

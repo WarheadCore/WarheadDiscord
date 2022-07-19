@@ -226,7 +226,6 @@ struct AuthSession
     std::string CoreName;
     std::string CoreVersion;
     uint32 ModuleVersion{ 0 };
-    int64 GuildID;
 };
 
 struct AccountInfo
@@ -234,6 +233,7 @@ struct AccountInfo
     uint32 ID{ 0 };
     Warhead::Crypto::SRP6::Salt Salt{};
     Warhead::Crypto::SRP6::Verifier Verifier{};
+    uint64 GuildID{ 0 };
     std::string RealmName;
     std::string CoreName;
     uint32 ModuleVersion{ 0 };
@@ -256,16 +256,17 @@ struct AccountInfo
         ID                  = fields[0].Get<uint32>();
         Salt                = fields[1].Get<Binary, Warhead::Crypto::SRP6::SALT_LENGTH>();
         Verifier            = fields[2].Get<Binary, Warhead::Crypto::SRP6::VERIFIER_LENGTH>();
-        RealmName           = fields[3].Get<std::string>();
-        LastIP              = fields[4].Get<std::string>();
-        CoreName            = fields[5].Get<std::string>();
-        ModuleVersion       = fields[6].Get<uint32>();
-
-        if (!fields[7].IsNull())
-            BanDate = fields[7].Get<Seconds>(false);
+        GuildID             = fields[3].Get<uint64>();
+        RealmName           = fields[4].Get<std::string>();
+        LastIP              = fields[5].Get<std::string>();
+        CoreName            = fields[6].Get<std::string>();
+        ModuleVersion       = fields[7].Get<uint32>();
 
         if (!fields[8].IsNull())
-            UnBanDate = fields[8].Get<Seconds>(false);
+            BanDate = fields[8].Get<Seconds>(false);
+
+        if (!fields[9].IsNull())
+            UnBanDate = fields[9].Get<Seconds>(false);
 
         if (UnBanDate > 0s && UnBanDate < GameTime::GetGameTime())
             IsBanned = true;
@@ -400,7 +401,6 @@ void DiscordSocket::HandleAuthSession(DiscordPacket& recvPacket)
     recvPacket >> authSession->CoreName;
     recvPacket >> authSession->CoreVersion;
     recvPacket >> authSession->ModuleVersion;
-    recvPacket >> authSession->GuildID;
 
     // Get the account information from the database
     auto stmt = DiscordDatabase.GetPreparedStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME);
@@ -463,7 +463,7 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
     if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(account->RemoteIpAddress->to_string()))
         _ipCountry = location->CountryCode;
 
-    sDiscordBot->CheckBotInGuild(authSession->GuildID, [this, authSession, account](bool isExist)
+    sDiscordBot->CheckBotInGuild(account->GuildID, [this, authSession, account](bool isExist)
     {
         if (!isExist)
         {
@@ -473,7 +473,7 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
             return;
         }
 
-        sDiscordBot->CheckChannels(authSession->GuildID, [this, authSession, account](DiscordChannelsList&& channelList)
+        sDiscordBot->CheckChannels(account->GuildID, [this, authSession, account](DiscordChannelsList&& channelList)
         {
             if (channelList.empty())
             {
@@ -495,7 +495,7 @@ void DiscordSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authS
 
             _authed = true;
 
-            _discordSession = new DiscordSession(account->ID, authSession->GuildID, std::move(authSession->Account), std::move(channelList), shared_from_this());
+            _discordSession = new DiscordSession(account->ID, account->GuildID, std::move(authSession->Account), std::move(channelList), shared_from_this());
 
             sDiscord->AddSession(_discordSession);
 

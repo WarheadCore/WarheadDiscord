@@ -23,7 +23,7 @@ void DiscordDatabaseConnection::DoPrepareStatements()
     if (!m_reconnecting)
         m_stmts.resize(MAX_DISCORD_DATABASE_STATEMENTS);
 
-    PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`, "
+    PrepareStatement(DISCORD_SEL_ACCOUNT_INFO_BY_NAME, "SELECT `a`.`ID`, `a`.`Salt`, `a`.`Verifier`, `a`.`GuildID`, `a`.`RealmName`, `a`.`LastIP`, `a`.`CoreName`, `a`.`ModuleVersion`, "
         "`ab`.`bandate`, `ab`.`unbandate` "
         "FROM `account` a LEFT JOIN `account_banned` ab ON `a`.`id` = `ab`.`id` AND `ab`.`active` = 1 WHERE `a`.`Name` = ? LIMIT 1", CONNECTION_ASYNC);
     PrepareStatement(DISCORD_INS_ACCOUNT, "INSERT INTO account (`Name`, `Salt`, `Verifier`, `GuildID`, `RealmName`, `JoinDate`) VALUES (?, ?, ?, ?, ?, NOW())", CONNECTION_ASYNC);
