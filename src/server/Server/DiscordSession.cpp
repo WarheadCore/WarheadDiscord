@@ -84,7 +84,7 @@ void DiscordSession::LogUnexpectedOpcode(DiscordPacket* packet, char const* stat
 /// Logging helper for unexpected opcodes
 void DiscordSession::LogUnprocessedTail(DiscordPacket* packet)
 {
-    if (!sLog->ShouldLog("network.opcode", LogLevel::LOG_LEVEL_TRACE) || packet->rpos() >= packet->wpos())
+    if (!sLog->ShouldLog("network.opcode", Warhead::LogLevel::Trace) || packet->rpos() >= packet->wpos())
         return;
 
     LOG_TRACE("network.opcode", "Unprocessed tail data (read stop at {} from {}) Opcode {}",
@@ -116,7 +116,7 @@ bool DiscordSession::Update()
         catch (ByteBufferException const&)
         {
             LOG_ERROR("network", "DiscordSession::Update ByteBufferException occured while parsing a packet (opcode: {}) from client {}, accountid={}. Skipped packet.", packet->GetOpcode(), GetRemoteAddress(), GetAccountId());
-            if (sLog->ShouldLog("network", LogLevel::LOG_LEVEL_DEBUG))
+            if (sLog->ShouldLog("network", Warhead::LogLevel::Debug))
             {
                 LOG_DEBUG("network", "Dumping error causing packet:");
                 packet->hexlike();

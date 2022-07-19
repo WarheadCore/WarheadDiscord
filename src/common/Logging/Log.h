@@ -15,123 +15,116 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef _LOG_H
+#define _LOG_H
 
-#include "Define.h"
-#include "StringFormat.h"
+#include "LogCommon.h"
+#include <fmt/format.h>
 #include <unordered_map>
+#include <vector>
 
-enum class LogLevel : uint8
+namespace Warhead
 {
-    LOG_LEVEL_DISABLED,
-    LOG_LEVEL_FATAL,
-    LOG_LEVEL_CRITICAL,
-    LOG_LEVEL_ERROR,
-    LOG_LEVEL_WARNING,
-    LOG_LEVEL_NOTICE,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_DEBUG,
-    LOG_LEVEL_TRACE,
-
-    LOG_LEVEL_MAX
-};
-
-// For create LogChannel
-enum ChannelOptions
-{
-    CHANNEL_OPTIONS_TYPE,
-    CHANNEL_OPTIONS_TIMES,
-    CHANNEL_OPTIONS_PATTERN,
-    CHANNEL_OPTIONS_OPTION_1,
-    CHANNEL_OPTIONS_OPTION_2,
-    CHANNEL_OPTIONS_OPTION_3,
-    CHANNEL_OPTIONS_OPTION_4,
-    CHANNEL_OPTIONS_OPTION_5,
-    CHANNEL_OPTIONS_OPTION_6,
-
-    CHANNEL_OPTIONS_MAX
-};
-
-enum class FormattingChannelType : uint8
-{
-    FORMATTING_CHANNEL_TYPE_CONSOLE = 1,
-    FORMATTING_CHANNEL_TYPE_FILE
-};
-
-// For create Logger
-enum LoggerOptions
-{
-    LOGGER_OPTIONS_LOG_LEVEL,
-    LOGGER_OPTIONS_CHANNELS_NAME,
-
-    LOGGER_OPTIONS_UNKNOWN
-};
-
-namespace Poco
-{
-    class FormattingChannel;
     class Logger;
-}
+    class Channel;
+    class LogMessage;
 
-class WH_COMMON_API Log
-{
-private:
-    Log();
-    ~Log();
-    Log(Log const&) = delete;
-    Log(Log&&) = delete;
-    Log& operator=(Log const&) = delete;
-    Log& operator=(Log&&) = delete;
+    typedef std::shared_ptr<Channel>(*ChannelCreateFn)(std::string_view, LogLevel, std::string_view, std::vector<std::string_view> const&);
 
-public:
-    static Log* instance();
-
-    void Initialize();
-    void LoadFromConfig();
-
-    bool ShouldLog(std::string_view type, LogLevel level) const;
-
-    template<typename... Args>
-    inline void outMessage(std::string const& filter, LogLevel const level, std::string_view fmt, Args&&... args)
+    template <class ChannelImpl>
+    inline std::shared_ptr<Channel> CreateChannel(std::string_view name, LogLevel level, std::string_view pattern, std::vector<std::string_view> const& options)
     {
-        Write(filter, level, fmt::format(fmt, std::forward<Args>(args)...));
+        return std::make_shared<ChannelImpl>(name, level, pattern, options);
     }
 
-    void Write(std::string_view filter, LogLevel const level, std::string_view message);
+    class WH_COMMON_API Log
+    {
+    private:
+        Log();
+        ~Log();
+        Log(Log const&) = delete;
+        Log(Log&&) = delete;
+        Log& operator=(Log const&) = delete;
+        Log& operator=(Log&&) = delete;
 
-private:
-    void CreateLoggerFromConfig(std::string const& configLoggerName);
-    void CreateChannelsFromConfig(std::string const& logChannelName);
-    void ReadLoggersFromConfig();
-    void ReadChannelsFromConfig();
+    public:
+        static Log* instance();
 
-    void InitLogsDir();
-    void Clear();
+        void Initialize();
+        void LoadFromConfig();
 
-    std::string_view GetPositionOptions(std::string_view options, uint8 position, std::string_view _default = {});
-    std::string const GetChannelsFromLogger(std::string const& loggerName);
+        void SetLoggerLevel(std::string_view name, LogLevel const level);
+        void SetChannelLevel(std::string_view name, LogLevel const level);
+        bool ShouldLog(std::string_view filter, LogLevel const level);
 
-    Poco::FormattingChannel* GetFormattingChannel(std::string const& channelName);
-    void AddFormattingChannel(std::string const& channelName, Poco::FormattingChannel* channel);
-    Poco::Logger* GetLoggerByType(std::string_view type) const;
+        template<typename... Args>
+        inline void OutMessage(std::string_view filter, LogLevel const level, std::string_view file, std::size_t line, std::string_view function, std::string_view fmt, Args&&... args)
+        {
+            _OutMessage(filter, level, file, line, function, fmt::format(fmt, std::forward<Args>(args)...));
+        }
 
-    std::string m_logsDir;
-    LogLevel highestLogLevel;
-    std::unordered_map<std::string, Poco::FormattingChannel*> _channelStore;
-};
+        template<typename... Args>
+        inline void OutCommand(uint32 account, std::string_view fmt, Args&&... args)
+        {
+            if (!ShouldLog("commands.gm", LogLevel::Info))
+                return;
 
-#define sLog Log::instance()
+            _OutCommand(account, fmt::format(fmt, std::forward<Args>(args)...));
+        }
+
+        //void OutCharDump(std::string_view str, uint32 accountId, uint64 guid, std::string_view name);
+
+        template<class ChannelImpl>
+        void RegisterChannel()
+        {
+            RegisterChannel(ChannelImpl::ThisChannelType, CreateChannel<ChannelImpl>);
+        }
+
+        inline std::string_view GetLogsDir() { return _logsDir; }
+
+        void UsingDefaultLogs(bool value = true);
+
+    private:
+        void _OutMessage(std::string_view filter, LogLevel level, std::string_view file, std::size_t line, std::string_view function, std::string_view message);
+        void _OutCommand(uint32 accountID, std::string_view message);
+        void Write(std::unique_ptr<LogMessage>&& msg);
+
+        void CreateLoggerFromConfig(std::string_view configLoggerName);
+        void CreateChannelsFromConfig(std::string_view logChannelName);
+        void ReadLoggersFromConfig();
+        void ReadChannelsFromConfig();
+
+        void Clear();
+
+        void RegisterChannel(ChannelType type, ChannelCreateFn channelCreateFn);
+
+        Logger* GetLoggerByType(std::string_view type);
+        Logger* HasLogger(std::string_view type);
+        std::shared_ptr<Channel> HasChannel(std::string_view name);
+
+        std::unordered_map<std::string, std::unique_ptr<Logger>> _loggers;
+        std::unordered_map<std::string, std::shared_ptr<Channel>> _channels;
+        std::unordered_map<int8, ChannelCreateFn> _channelsCreateFunction;
+
+        LogLevel highestLogLevel;
+        std::string _logsDir;
+
+        //
+        bool _isUseDefaultLogs{ false };
+    };
+}
+
+#define sLog Warhead::Log::instance()
 
 #define LOG_EXCEPTION_FREE(filterType__, level__, ...) \
     { \
         try \
         { \
-            sLog->outMessage(filterType__, level__, fmt::format(__VA_ARGS__)); \
+            sLog->OutMessage(filterType__, level__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
         } \
         catch (const std::exception& e) \
         { \
-            sLog->outMessage("server", LogLevel::LOG_LEVEL_ERROR, "Wrong format occurred ({}) at '{}:{}'", \
+            sLog->OutMessage("server", Warhead::LogLevel::Error, __FILE__, __LINE__, __FUNCTION__, "Wrong format occurred ({}) at '{}:{}'", \
                 e.what(), __FILE__, __LINE__); \
         } \
     }
@@ -144,34 +137,36 @@ private:
 
 // Fatal - 1
 #define LOG_FATAL(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_FATAL, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Fatal, __VA_ARGS__)
 
 // Critical - 2
 #define LOG_CRIT(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_CRITICAL, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Critical, __VA_ARGS__)
 
 // Error - 3
 #define LOG_ERROR(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_ERROR, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Error, __VA_ARGS__)
 
 // Warning - 4
 #define LOG_WARN(filterType__, ...)  \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_WARNING, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Warning, __VA_ARGS__)
 
-// Notice - 5
-#define LOG_NOTICE(filterType__, ...)  \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_NOTICE, __VA_ARGS__)
-
-// Info - 6
+// Info - 5
 #define LOG_INFO(filterType__, ...)  \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_INFO, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Info, __VA_ARGS__)
 
-// Debug - 7
+// Debug - 6
 #define LOG_DEBUG(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_DEBUG, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Debug, __VA_ARGS__)
 
-// Trace - 8
+// Trace - 7
 #define LOG_TRACE(filterType__, ...) \
-    LOG_MSG_BODY(filterType__, LogLevel::LOG_LEVEL_TRACE, __VA_ARGS__)
+    LOG_MSG_BODY(filterType__, Warhead::LogLevel::Trace, __VA_ARGS__)
 
-#endif // _LOG_H__
+#define LOG_GM(accountId__, ...) \
+    sLog->OutCommand(accountId__, __VA_ARGS__);
+
+//#define LOG_CHAR_DUMP(message__, accountId__, playerGuid__, playerName__) \
+//    sLog->OutCharDump(message__, accountId__, playerGuid__, playerName__);
+
+#endif
